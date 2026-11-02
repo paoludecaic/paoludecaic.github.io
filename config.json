@@ -1,6 +1,19 @@
 {
-    "title":"Blog Title",
-    "subTitle":"Blog description",
-    "avatarUrl":"https://github.githubassets.com/favicons/favicon.svg",
-    "GMEEK_VERSION":"last"
+    "title":"蔡永斌的博客",
+    "subTitle":"记录我的经历",
+    "avatarUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",
+    "GMEEK_VERSION":"last",
+    "displayTitle":"博客，记录美好生活",
+    "homeUrl":"https://my_home.caicai.asia/",
+    "faviconUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",    
+    "startSite":"11/01/2026",
+    "onePageListNum":10,
+    "commentLabelColor":"#006b75",
+    "yearColorList":["#bc4c00", "#0969da", "#1f883d", "#A333D0"],
+    "i18n":"CN",
+    "UTC":8,      
+    "showPostSource":1,
+    "rssSplit":"sentence",
+    "bottomText":"转载请注明出处",
+    "needComment":1
 }
