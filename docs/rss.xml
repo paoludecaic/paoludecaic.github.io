@@ -1,21 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>蔡永斌的博客</title><link>https://my_home.caicai.asia/</link><description>记录我的经历</description><copyright>蔡永斌的博客</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/128145836?v=4</url><title>avatar</title><link>https://my_home.caicai.asia/</link></image><lastBuildDate>Mon, 02 Nov 2026 16:26:47 +0000</lastBuildDate><managingEditor>蔡永斌的博客</managingEditor><ttl>60</ttl><webMaster>蔡永斌的博客</webMaster><item><title>links</title><link>https://my_home.caicai.asia//post/links.html</link><description>
-# 友链
-
-
-&gt;  TODO。</description><guid isPermaLink="true">https://my_home.caicai.asia//post/links.html</guid><pubDate>Mon, 02 Nov 2026 16:26:17 +0000</pubDate></item><item><title>about</title><link>https://my_home.caicai.asia//post/about.html</link><description># 关于我的
-
-目前在校生学生一枚，正在努力地寻求工作
-
-# 校园经历
-
-##  蜘蛛人计算机网络服务队技术部副部长
-
-任职时间：2022.9——2025.5  
-任职岗位：蜘蛛人计算机网络服务队技术部副部长   
-职能：
-1. 负责社团内部Java开发与Linux基础知识培训2. 
-2. 负责校园内终端运维：网络连接、系统重装、软件安装等常见桌面问题及电脑清灰与内存更换等。</description><guid isPermaLink="true">https://my_home.caicai.asia//post/about.html</guid><pubDate>Mon, 02 Nov 2026 16:24:36 +0000</pubDate></item><item><title>Gmeek_config</title><link>https://my_home.caicai.asia//post/Gmeek_config.html</link><description>#  `Gmeek` 基础配置
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>蔡永斌的博客</title><link>https://my_home.caicai.asia/</link><description>记录我的经历</description><copyright>蔡永斌的博客</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/128145836?v=4</url><title>avatar</title><link>https://my_home.caicai.asia/</link></image><lastBuildDate>Mon, 02 Nov 2026 16:29:19 +0000</lastBuildDate><managingEditor>蔡永斌的博客</managingEditor><ttl>60</ttl><webMaster>蔡永斌的博客</webMaster><item><title>Gmeek_config</title><link>https://my_home.caicai.asia//post/Gmeek_config.html</link><description>#  `Gmeek` 基础配置
 简单的基础配置，来自于  [[Gmeek快速上手](https://blog.meekdai.com/post/Gmeek-kuai-su-shang-shou.html)](https://blog.meekdai.com/post/Gmeek-kuai-su-shang-shou.html)  
 
 剔除一些不常用的配置，常用简单配置如下
@@ -133,4 +117,20 @@ TOC目录插件+灯箱图片插件使用  `script` 关键字配置
     'allHead':'&lt;script src='https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js'&gt;&lt;/script&gt;',
     'script':'&lt;script src='https://blog.meekdai.com/Gmeek/plugins/GmeekTOC.js'&gt;&lt;/script&gt;&lt;script src='https://blog.meekdai.com/Gmeek/plugins/lightbox.js'&gt;&lt;/script&gt;'
 }
-```。</description><guid isPermaLink="true">https://my_home.caicai.asia//post/Gmeek_config.html</guid><pubDate>Mon, 02 Nov 2026 13:41:44 +0000</pubDate></item><item><title>Hello</title><link>https://my_home.caicai.asia//post/Hello.html</link><description>大家好。</description><guid isPermaLink="true">https://my_home.caicai.asia//post/Hello.html</guid><pubDate>Mon, 02 Nov 2026 10:11:24 +0000</pubDate></item></channel></rss>
+```。</description><guid isPermaLink="true">https://my_home.caicai.asia//post/Gmeek_config.html</guid><pubDate>Mon, 02 Nov 2026 13:41:44 +0000</pubDate></item><item><title>Hello</title><link>https://my_home.caicai.asia//post/Hello.html</link><description>大家好。</description><guid isPermaLink="true">https://my_home.caicai.asia//post/Hello.html</guid><pubDate>Mon, 02 Nov 2026 10:11:24 +0000</pubDate></item><item><title>about</title><link>https://my_home.caicai.asia//about.html</link><description># 关于我的
+
+目前在校生学生一枚，正在努力地寻求工作
+
+# 校园经历
+
+##  蜘蛛人计算机网络服务队技术部副部长
+
+任职时间：2022.9——2025.5  
+任职岗位：蜘蛛人计算机网络服务队技术部副部长   
+职能：
+1. 负责社团内部Java开发与Linux基础知识培训2. 
+2. 负责校园内终端运维：网络连接、系统重装、软件安装等常见桌面问题及电脑清灰与内存更换等。</description><guid isPermaLink="true">https://my_home.caicai.asia//about.html</guid><pubDate>Mon, 02 Nov 2026 16:24:36 +0000</pubDate></item><item><title>links</title><link>https://my_home.caicai.asia//links.html</link><description>
+# 友链
+
+
+&gt;  TODO。</description><guid isPermaLink="true">https://my_home.caicai.asia//links.html</guid><pubDate>Mon, 02 Nov 2026 16:26:17 +0000</pubDate></item></channel></rss>
