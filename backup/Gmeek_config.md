@@ -1,22 +1,119 @@
-#  文章一级目录1
-对方向你结果把速度加快复合管
+#  `Gmeek` 基础配置
+简单的基础配置，来自于  [[Gmeek快速上手](https://blog.meekdai.com/post/Gmeek-kuai-su-shang-shou.html)](https://blog.meekdai.com/post/Gmeek-kuai-su-shang-shou.html)  
 
-## 文章二级目录1
-djkfghsdfhhg
+剔除一些不常用的配置，常用简单配置如下
 
-## 文章二级目录2
+```json
+{
+    "title":"",
+    "subTitle":"",
+    "avatarUrl":"",
+    "GMEEK_VERSION":"last",
+    "displayTitle":"",    
+    "startSite":"",
+    "onePageListNum":"",
+    "i18n":"CN",
+    "UTC":8,      
+    "showPostSource":1,
+    "rssSplit":"sentence",
+    "bottomText":"转载请注明出处",
+    "needComment":1
+}
+```
+
+我的个人简单配置（未包含插件部分）
+```json
+{
+    "title":"蔡永斌的博客",
+    "subTitle":"记录我的经历",
+    "avatarUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",
+    "GMEEK_VERSION":"last",
+    "displayTitle":"博客，记录美好生活",
+    "homeUrl":"https://my_home.caicai.asia/",
+    "faviconUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",    
+    "startSite":"11/01/2026",
+    "onePageListNum":10,
+    "commentLabelColor":"#006b75",
+    "yearColorList":["#bc4c00", "#0969da", "#1f883d", "#A333D0"],
+    "i18n":"CN",
+    "UTC":8,      
+    "showPostSource":1,
+    "rssSplit":"sentence",
+    "bottomText":"转载请注明出处",
+    "needComment":1
+}
+```
+
+#  `Gmeek` 插件配置
+
+目前推荐三个插件
+
+1. 浏览量插件
+2. 目录插件
+3. 灯箱图片插件
+
+## 浏览量插件  
+
+推荐 `Vercount` 插件
+```json
+"allHead":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js'></script>"
+```
+
+## 目录插件
+
+推荐TOC目录插件
+### TOC目录插件
+```json
+"script":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekTOC.js'></script>"
+```
+
+### articletoc目录插件
+```json
+"script":"<script src='https://blog.meekdai.com/Gmeek/plugins/articletoc.js'></script>"
+```
+
+## 灯箱图片插件
+
+点击图片就会出现灯箱效果
+
+```json
+"script":"<script src='https://blog.meekdai.com/Gmeek/plugins/lightbox.js'></script>"
+```
+
+## 多插件配置
+
+多插件配置，目前推荐  `浏览量插件+TOC目录插件+灯箱图片插件` ，节选配置如下
+浏览量插件使用 `allHead`  关键字配置 
+TOC目录插件+灯箱图片插件使用  `script` 关键字配置
+
+```json
+"allHead":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js'></script>",
+"script":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekTOC.js'></script><script src='https://blog.meekdai.com/Gmeek/plugins/lightbox.js'></script>"
+```
 
 
-#  文章一级目录2
-对方向你结果把速度加快复合管
+# 我的完整配置
 
-## 文章二级目录3
-djkfghsdfhhg
-
-## 文章二级目录4
-色肉体会哦
-
-### 文章三级目录1
-sldrjhgosdrjihgv
-
-## ## 文章二级目录5
+```json
+{
+    "title":"蔡永斌的博客",
+    "subTitle":"记录我的经历",
+    "avatarUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",
+    "GMEEK_VERSION":"last",
+    "displayTitle":"博客，记录美好生活",
+    "homeUrl":"https://my_home.caicai.asia/",
+    "faviconUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",    
+    "startSite":"11/01/2026",
+    "onePageListNum":10,
+    "commentLabelColor":"#006b75",
+    "yearColorList":["#bc4c00", "#0969da", "#1f883d", "#A333D0"],
+    "i18n":"CN",
+    "UTC":8,      
+    "showPostSource":1,
+    "rssSplit":"sentence",
+    "bottomText":"转载请注明出处",
+    "needComment":1,
+    "allHead":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js'></script>",
+    "script":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekTOC.js'></script><script src='https://blog.meekdai.com/Gmeek/plugins/lightbox.js'></script>"
+}
+```
