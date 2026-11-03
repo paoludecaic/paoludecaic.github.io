@@ -6,6 +6,7 @@
  * 
  * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js
  * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js'>
+*/
 
 
 function loadResource(type, attributes, callback) {
