@@ -1,9 +1,15 @@
+
 /**
- * GmeekTOC.js
- * 基于 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js 修改
- * 优化：多级目录缩进、阴影美化、返回顶部按钮、CDN 降级、防重复初始化
- * 时间：2026-11-03
- */
+ * GmeekTOC-20261103.js
+ * GmeekTOC 文章目录工具 当前为展开六级目录，后需考虑3/4级目录
+ * 20261103 版本号 2026年11月3日 发版的稳定版
+ * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
+ * 
+ * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261103.js
+**/
+
+// TODO 文章目录工具 当前为展开六级目录，后需考虑展开3/4级目录
+
 
 function loadResource(type, attributes, callback) {
     var element;

@@ -1,9 +1,11 @@
 /**
- * 由DeepSeek-V4.1-Flash-1017基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js
+ * GmeekPageView-20261103.js
+ * GmeekPageView 站点与文章阅览量统计
+ * 20261103 版本号 2026年11月3日 发版的稳定版
+ * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js
  * 
- * 时间 2026-11-3 21:05:24 
- * 
- * **/
+ * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekPageView-20261103.js
+**/
 
 
 function createVercount() {
