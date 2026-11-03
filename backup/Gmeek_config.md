@@ -23,14 +23,14 @@
 
 我的个人简单配置（未包含插件部分）
 ```json
-{
+{{
     "title":"蔡永斌的博客",
     "subTitle":"记录我的经历",
-    "avatarUrl":"https://paoludecaic.github.io/logo.svg",
+    "avatarUrl":"https://blog.caicai.asia/logo.svg",
     "GMEEK_VERSION":"last",
     "displayTitle":"博客，记录美好生活",
     "homeUrl":"https://blog.caicai.asia",
-    "faviconUrl":"https://paoludecaic.github.io/logo.svg",
+    "faviconUrl":"https://blog.caicai.asia/logo.svg",
     "email":"2929507217@qq.com",
     "startSite":"11/01/2026",
     "onePageListNum":15,
@@ -39,7 +39,7 @@
     "yearColorList":["#bc4c00", "#0969da", "#1f883d", "#A333D0"],
     "i18n":"CN",
     "UTC":8,    
-    "urlMode":"issue",  
+    "urlMode":"issue",
     "showPostSource":1,
     "bottomText":"❤️ 转载文章请注明出处，谢谢！❤️",
     "primerCSS":"<link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />",
@@ -101,11 +101,11 @@ TOC目录插件+灯箱图片插件使用  `script` 关键字配置
 {
     "title":"蔡永斌的博客",
     "subTitle":"记录我的经历",
-    "avatarUrl":"https://paoludecaic.github.io/logo.svg",
+    "avatarUrl":"https://blog.caicai.asia/logo.svg",
     "GMEEK_VERSION":"last",
     "displayTitle":"博客，记录美好生活",
     "homeUrl":"https://blog.caicai.asia",
-    "faviconUrl":"https://paoludecaic.github.io/logo.svg",
+    "faviconUrl":"https://blog.caicai.asia/logo.svg",
     "email":"2929507217@qq.com",
     "startSite":"11/01/2026",
     "onePageListNum":15,
@@ -115,8 +115,8 @@ TOC目录插件+灯箱图片插件使用  `script` 关键字配置
     "i18n":"CN",
     "UTC":8,    
     "urlMode":"issue",
-    "script":"<script src='https://paoludecaic.github.io/GmeekTOC.js'></script>",
-    "allHead":"<script src='https://paoludecaic.github.io/GmeekCount.js'></script>",    
+    "script":"<script src='https://blog.caicai.asia/GmeekTOC.js'></script>",
+    "allHead":"<script src='https://blog.caicai.asia/GmeekCount.js'></script>",
     "showPostSource":1,
     "bottomText":"❤️ 转载文章请注明出处，谢谢！❤️",
     "primerCSS":"<link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />",
