@@ -115,7 +115,7 @@ function refreshTheme() {
 document.addEventListener("DOMContentLoaded", function () {
     createTOC();
 
-    var css = `
+        var css = `
         /* ===== 目录框美化（背景/边框/阴影由 JS 按主题注入） ===== */
         .toc {
             position: fixed;
@@ -128,11 +128,23 @@ document.addEventListener("DOMContentLoaded", function () {
             border: 1px solid #e5e7eb;
             max-height: 60vh;
             overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f1f5f9;
             z-index: 100;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            
+            /* 滚动条全面适配 */
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
         }
+        .toc[data-theme="dark"] {
+            scrollbar-color: #475569 transparent;
+        }
+        
+        .toc::-webkit-scrollbar { width: 6px; background-color: transparent; }
+        .toc::-webkit-scrollbar-track { background-color: transparent; }
+        .toc::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .toc[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
+
+        /* 目录容器悬浮阴影 */
         .toc:hover {
             box-shadow:
                 0 14px 30px -6px rgba(0, 0, 0, 0.16),
@@ -145,11 +157,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 0 10px 14px -8px rgba(0, 0, 0, 0.45),
                 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         }
-        .toc::-webkit-scrollbar { width: 6px; }
-        .toc::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        .toc::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .toc[data-theme="dark"]::-webkit-scrollbar-track { background: #1e293b; }
-        .toc[data-theme="dark"]::-webkit-scrollbar-thumb { background: #475569; }
 
         /* ===== 目录列表 ===== */
         .toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
@@ -207,6 +214,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
     `;
+    
     loadResource('style', { css: css });
 
     var randomDepth = Math.random() < 0.5 ? 3 : 4;
