@@ -5,7 +5,7 @@
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  * 
  * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js
-**/
+ * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js'>
 
 
 function loadResource(type, attributes, callback) {
@@ -39,16 +39,19 @@ function createTOC() {
 
 /* ---- 目录链接随机彩色 ---- */
 function colorizeTOC() {
+    var dark = getMode() === 'dark';
+    var light = dark ? 64 : 42;
+    var lightHover = dark ? 74 : 32;
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
         var hue = Math.floor(Math.random() * 360);
-        a.style.color = 'hsl(' + hue + ', 65%, 42%)';
+        a.style.color = 'hsl(' + hue + ', 65%, ' + light + '%)';
         a.style.transition = 'color 0.25s, background-color 0.25s';
         a.addEventListener('mouseenter', function () {
-            a.style.color = 'hsl(' + hue + ', 75%, 32%)';
+            a.style.color = 'hsl(' + hue + ', 75%, ' + lightHover + '%)';
         });
         a.addEventListener('mouseleave', function () {
-            a.style.color = 'hsl(' + hue + ', 65%, 42%)';
+            a.style.color = 'hsl(' + hue + ', 65%, ' + light + '%)';
         });
     });
 }
@@ -62,11 +65,57 @@ function hideEmptyTOC() {
     }
 }
 
+/* ==================== 主题：读取 html[data-color-mode] ==================== */
+function getMode() {
+    var mode = document.documentElement.getAttribute('data-color-mode');
+    if (mode === 'dark' || mode === 'light') return mode;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function paintTOC(mode) {
+    var toc = document.querySelector('.toc');
+    if (!toc) return;
+
+    toc.setAttribute('data-theme', mode);
+
+    if (mode === 'dark') {
+        toc.style.background = 'rgba(30, 41, 59, 0.92)';
+        toc.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+        toc.style.boxShadow =
+            '0 10px 25px -5px rgba(0, 0, 0, 0.5),' +
+            '0 8px 10px -6px rgba(0, 0, 0, 0.35),' +
+            '0 0 0 1px rgba(255, 255, 255, 0.06) inset';
+    } else {
+        toc.style.background = '#ffffff';
+        toc.style.borderColor = '#e5e7eb';
+        toc.style.boxShadow =
+            '0 10px 25px -5px rgba(0, 0, 0, 0.12),' +
+            '0 8px 10px -6px rgba(0, 0, 0, 0.08),' +
+            '0 0 0 1px rgba(255, 255, 255, 0.6) inset';
+    }
+}
+
+var currentMode = null;
+var themeTicking = false;
+
+function refreshTheme() {
+    if (themeTicking) return;
+    themeTicking = true;
+    (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(function () {
+        themeTicking = false;
+        var mode = getMode();
+        if (mode === currentMode) return;
+        currentMode = mode;
+        paintTOC(mode);
+        colorizeTOC();
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     createTOC();
 
     var css = `
-        /* ===== 目录框美化 ===== */
+        /* ===== 目录框美化（背景/边框/阴影由 JS 按主题注入） ===== */
         .toc {
             position: fixed;
             top: 130px;
@@ -74,19 +123,14 @@ document.addEventListener("DOMContentLoaded", function () {
             transform: translateX(50%) translateX(300px);
             width: 220px;
             padding: 16px 16px 16px 20px;
-            background: #ffffff;
             border-radius: 14px;
             border: 1px solid #e5e7eb;
-            box-shadow:
-                0 10px 25px -5px rgba(0, 0, 0, 0.12),
-                0 8px 10px -6px rgba(0, 0, 0, 0.08),
-                0 0 0 1px rgba(255, 255, 255, 0.6) inset;
             max-height: 60vh;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: #cbd5e1 #f1f5f9;
             z-index: 100;
-            transition: box-shadow 0.2s;
+            transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
         .toc:hover {
             box-shadow:
@@ -94,9 +138,17 @@ document.addEventListener("DOMContentLoaded", function () {
                 0 10px 14px -8px rgba(0, 0, 0, 0.1),
                 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
         }
+        .toc[data-theme="dark"]:hover {
+            box-shadow:
+                0 14px 30px -6px rgba(0, 0, 0, 0.6),
+                0 10px 14px -8px rgba(0, 0, 0, 0.45),
+                0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+        }
         .toc::-webkit-scrollbar { width: 6px; }
         .toc::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         .toc::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .toc[data-theme="dark"]::-webkit-scrollbar-track { background: #1e293b; }
+        .toc[data-theme="dark"]::-webkit-scrollbar-thumb { background: #475569; }
 
         /* ===== 目录列表 ===== */
         .toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
@@ -117,13 +169,20 @@ document.addEventListener("DOMContentLoaded", function () {
             background-color: #f3f4f6;
             border-left-color: currentColor;
         }
+        .toc[data-theme="dark"] a.toc-link:hover {
+            background-color: #334155;
+        }
         .toc .is-active-link {
             font-weight: 600;
             background-color: #eff6ff;
             border-left-color: currentColor;
         }
+        .toc[data-theme="dark"] .is-active-link {
+            background-color: #1e3a8a;
+            color: #e0e7ff !important;
+        }
 
-        /* ===== 折叠动画（替代强制展开，让 collapseDepth 生效） ===== */
+        /* ===== 折叠动画 ===== */
         .toc .is-collapsible {
             max-height: 0;
             overflow: hidden;
@@ -143,9 +202,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 width: 100%;
                 max-height: none;
                 margin-bottom: 20px;
-                background-color: #f8fafc;
                 padding: 14px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             }
         }
     `;
@@ -164,12 +221,26 @@ document.addEventListener("DOMContentLoaded", function () {
             collapseDepth: randomDepth,
         });
 
+        currentMode = getMode();
+        paintTOC(currentMode);
         colorizeTOC();
 
         setTimeout(function () {
             colorizeTOC();
             hideEmptyTOC();
         }, 300);
+
+        /* 监听 html[data-color-mode] 变化（modeSwitch 触发点） */
+        if (window.MutationObserver) {
+            var observer = new MutationObserver(refreshTheme);
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
+        }
+        /* 系统偏好变化时也刷新（data-color-mode=auto 场景） */
+        if (window.matchMedia) {
+            var media = window.matchMedia('(prefers-color-scheme: dark)');
+            if (media.addEventListener) media.addEventListener('change', refreshTheme);
+            else if (media.addListener) media.addListener(refreshTheme);
+        }
     });
 
     loadResource('link', { rel: 'stylesheet', href: 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.css' });
