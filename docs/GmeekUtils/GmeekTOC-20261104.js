@@ -79,18 +79,16 @@ function enhanceTOCBehavior() {
         var li = link.closest('li');
         var level = parseInt(li.getAttribute('data-level') || '1', 10);
 
-        // 6 级目录：不再展开，隐藏折叠按钮
+        // 6 级目录：隐藏折叠按钮，且点击无反应
         if (level >= 6) {
             var btn = li.querySelector('.toc-collapse-button');
             if (btn) btn.style.display = 'none';
         }
 
-        // 点击事件
+        // 点击事件：展开对应下一级
         link.addEventListener('click', function () {
-            // 6 级目录：无反应
-            if (level >= 6) return;
+            if (level >= 6) return; // 6级无反应
 
-            // 1~5 级目录：展开对应下一级
             var subList = li.querySelector('.toc-list');
             if (subList) {
                 var subItems = subList.querySelectorAll('.toc-list-item');
@@ -257,6 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     loadResource('style', { css: css });
 
+    // 随机展开 3 或 4 级
     var randomDepth = Math.random() < 0.5 ? 3 : 4;
 
     loadResource('script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.min.js' }, function () {
@@ -277,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setTimeout(function () {
             colorizeTOC();
             hideEmptyTOC();
-            enhanceTOCBehavior();
+            enhanceTOCBehavior(); // 增强点击交互
         }, 300);
 
         /* 监听 html[data-color-mode] 变化（modeSwitch 触发点） */
