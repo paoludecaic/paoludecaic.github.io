@@ -1,13 +1,12 @@
 /**
  * GmeekTOC-20261104.js
- * GmeekTOC 文章目录工具 随机展开3/4级目录
+ * GmeekTOC 文章目录工具 随机展开3/4级目录，点击展开下一级，最深展示6级
  * 20261104 版本号 2026年11月4日 发版的稳定版
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  * 
  * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js
- * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js'>
-*/
-
+ * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261104.js'></script>"
+**/
 
 function loadResource(type, attributes, callback) {
     var element;
@@ -45,6 +44,9 @@ function colorizeTOC() {
     var lightHover = dark ? 74 : 32;
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
+        if (a.dataset.colored) return;
+        a.dataset.colored = 'true';
+
         var hue = Math.floor(Math.random() * 360);
         a.style.color = 'hsl(' + hue + ', 65%, ' + light + '%)';
         a.style.transition = 'color 0.25s, background-color 0.25s';
@@ -64,6 +66,44 @@ function hideEmptyTOC() {
     if (!toc.querySelector('a.toc-link')) {
         toc.style.display = 'none';
     }
+}
+
+/* ---- 增强折叠逻辑：点击展开下一级，限制 6 级 ---- */
+function enhanceTOCBehavior() {
+    var toc = document.querySelector('.toc');
+    if (!toc) return;
+
+    var allLinks = toc.querySelectorAll('a.toc-link');
+
+    allLinks.forEach(function (link) {
+        var li = link.closest('li');
+        var level = parseInt(li.getAttribute('data-level') || '1', 10);
+
+        // 6 级目录：不再展开，隐藏折叠按钮
+        if (level >= 6) {
+            var btn = li.querySelector('.toc-collapse-button');
+            if (btn) btn.style.display = 'none';
+        }
+
+        // 点击事件
+        link.addEventListener('click', function () {
+            // 6 级目录：无反应
+            if (level >= 6) return;
+
+            // 1~5 级目录：展开对应下一级
+            var subList = li.querySelector('.toc-list');
+            if (subList) {
+                var subItems = subList.querySelectorAll('.toc-list-item');
+                subItems.forEach(function (item) {
+                    item.classList.add('is-open');
+                    item.classList.remove('is-collapsed');
+                    item.classList.remove('is-collapsible');
+                    item.style.maxHeight = 'none';
+                    item.style.opacity = '1';
+                });
+            }
+        });
+    });
 }
 
 /* ==================== 主题：读取 html[data-color-mode] ==================== */
@@ -115,7 +155,7 @@ function refreshTheme() {
 document.addEventListener("DOMContentLoaded", function () {
     createTOC();
 
-        var css = `
+    var css = `
         /* ===== 目录框美化（背景/边框/阴影由 JS 按主题注入） ===== */
         .toc {
             position: fixed;
@@ -214,7 +254,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
     `;
-    
+
     loadResource('style', { css: css });
 
     var randomDepth = Math.random() < 0.5 ? 3 : 4;
@@ -237,6 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setTimeout(function () {
             colorizeTOC();
             hideEmptyTOC();
+            enhanceTOCBehavior();
         }, 300);
 
         /* 监听 html[data-color-mode] 变化（modeSwitch 触发点） */
