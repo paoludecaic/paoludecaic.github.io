@@ -4,6 +4,7 @@
  * 20261104 版本号 2026年11月4日 发版的稳定版
  *
  * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekButton-Top-Foot.20261104.js
+ * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekButton-Top-Foot.20261104.js'>
 **/
 
 
@@ -19,7 +20,7 @@
     var ARTICLE_SELECTORS = ['#postBody', '.markdown-body', 'article', '#content'];
 
     var refs = { stack: null, top: null, foot: null, hues: [220, 130] };
-    var currentDark = null;
+    var currentMode = null;
     var edgeTicking = false;
     var themeTicking = false;
 
@@ -74,55 +75,18 @@
         return [first, second];
     }
 
-    function parseRGBA(value) {
-        var m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\s*\)/i.exec(value || '');
-        if (!m) return null;
-        return [parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]), m[4] === undefined ? 1 : parseFloat(m[4])];
+    /* ==================== 主题：读取 html[data-color-mode] ==================== */
+    function getMode() {
+        var mode = document.documentElement.getAttribute('data-color-mode');
+        if (mode === 'dark' || mode === 'light') return mode;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
-    function relativeLuminance(rgb) {
-        var c = [rgb[0], rgb[1], rgb[2]].map(function (v) {
-            var x = v / 255;
-            return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-        });
-        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-    }
-
-    function pageBackgroundLuminance() {
-        var node = document.body;
-        while (node && node.nodeType === 1) {
-            var rgba = parseRGBA(getComputedStyle(node).backgroundColor);
-            if (rgba && rgba[3] >= 0.5) return relativeLuminance(rgba);
-            node = node.parentElement;
-        }
-        return null;
-    }
-
-    function hasDarkMark() {
-        var nodes = [document.documentElement, document.body];
-        var re = /(^|\s)(dark|dark-mode|darkmode|theme-dark|night)($|\s)/i;
-        for (var i = 0; i < nodes.length; i++) {
-            var el = nodes[i];
-            if (!el) continue;
-            var theme = el.getAttribute ? el.getAttribute('data-theme') : '';
-            if (theme && /dark|night/i.test(theme)) return true;
-            if (typeof el.className === 'string' && re.test(el.className)) return true;
-        }
-        return false;
-    }
-
-    function isDarkPage() {
-        if (hasDarkMark()) return true;
-        var lum = pageBackgroundLuminance();
-        if (lum !== null) return lum < 0.5;
-        return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    }
-
-    function paint(btn, hue, dark) {
+    function paint(btn, hue, mode) {
         if (!btn) return;
         var s = btn.style;
         s.setProperty('--fab-hue', String(hue));
-        if (dark) {
+        if (mode === 'dark') {
             s.color = hsl(hue, 65, 68);
             s.background = 'linear-gradient(145deg, ' + hsl(hue, 24, 18) + ', ' + hsl(hue, 30, 11) + ')';
             s.setProperty('--fab-border', hsla(hue, 60, 70, 0.28));
@@ -225,14 +189,14 @@
     }
 
     function applyTheme() {
-        var dark = isDarkPage();
-        var changed = dark !== currentDark;
-        currentDark = dark;
+        var mode = getMode();
+        var changed = mode !== currentMode;
+        currentMode = mode;
         if (!refs.stack) return;
-        refs.stack.setAttribute('data-theme', dark ? 'dark' : 'light');
+        refs.stack.setAttribute('data-theme', mode);
         if (changed) {
-            paint(refs.top, refs.hues[0], dark);
-            paint(refs.foot, refs.hues[1], dark);
+            paint(refs.top, refs.hues[0], mode);
+            paint(refs.foot, refs.hues[1], mode);
         }
     }
 
@@ -430,13 +394,12 @@
         window.addEventListener('resize', requestEdgeUpdate);
         window.addEventListener('load', requestEdgeUpdate);
 
+        /* 监听 html[data-color-mode] 变化（modeSwitch 触发点） */
         if (window.MutationObserver) {
             var observer = new MutationObserver(refreshTheme);
-            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
-            if (document.body) {
-                observer.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
-            }
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
         }
+        /* 系统偏好变化时也刷新（data-color-mode=auto 场景） */
         if (window.matchMedia) {
             var media = window.matchMedia('(prefers-color-scheme: dark)');
             if (media.addEventListener) media.addEventListener('change', refreshTheme);
