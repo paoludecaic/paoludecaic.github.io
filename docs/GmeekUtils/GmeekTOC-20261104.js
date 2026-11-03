@@ -68,29 +68,33 @@ function hideEmptyTOC() {
     }
 }
 
-/* ---- 增强折叠逻辑：点击展开下一级，限制 6 级 ---- */
+/* ---- 增强折叠逻辑（事件代理，防拦截） ---- */
 function enhanceTOCBehavior() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
-    var allLinks = toc.querySelectorAll('a.toc-link');
+    // 隐藏 6 级目录的折叠按钮
+    toc.querySelectorAll('li[data-level="6"] .toc-collapse-button').forEach(function (btn) {
+        btn.style.display = 'none';
+    });
 
-    allLinks.forEach(function (link) {
+    // 使用事件代理，在父容器上监听点击
+    toc.addEventListener('click', function (e) {
+        var link = e.target.closest('a.toc-link');
+        if (!link) return;
+
         var li = link.closest('li');
+        if (!li) return;
+
         var level = parseInt(li.getAttribute('data-level') || '1', 10);
 
-        // 6 级目录：隐藏折叠按钮，且点击无反应
-        if (level >= 6) {
-            var btn = li.querySelector('.toc-collapse-button');
-            if (btn) btn.style.display = 'none';
-        }
+        // 6 级目录不展开
+        if (level >= 6) return;
 
-        // 点击事件：展开对应下一级
-        link.addEventListener('click', function () {
-            if (level >= 6) return; // 6级无反应
-
-            var subList = li.querySelector('.toc-list');
-            if (subList) {
+        var subList = li.querySelector('.toc-list');
+        if (subList) {
+            // 使用 setTimeout 让 tocbot 内部的点击跳转逻辑先执行完，再强制展开
+            setTimeout(function () {
                 var subItems = subList.querySelectorAll('.toc-list-item');
                 subItems.forEach(function (item) {
                     item.classList.add('is-open');
@@ -99,8 +103,8 @@ function enhanceTOCBehavior() {
                     item.style.maxHeight = 'none';
                     item.style.opacity = '1';
                 });
-            }
-        });
+            }, 10);
+        }
     });
 }
 
@@ -255,7 +259,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     loadResource('style', { css: css });
 
-    // 随机展开 3 或 4 级
+    // 为了满足“四级以下不展开”，默认深度固定为 4，或随机 3/4
     var randomDepth = Math.random() < 0.5 ? 3 : 4;
 
     loadResource('script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.min.js' }, function () {
