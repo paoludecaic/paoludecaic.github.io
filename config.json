@@ -4,9 +4,8 @@
     "avatarUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",
     "GMEEK_VERSION":"last",
     "displayTitle":"博客，记录美好生活",
-    "homeUrl":"https://my_home.caicai.asia/",
-    "faviconUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",    
-    "singlePage":["links","about"],
+    "homeUrl":"https://blog.caicai.asia/",
+    "faviconUrl":"https://avatars.githubusercontent.com/u/128145836?v=4",
     "email":"2929507217@qq.com",
     "startSite":"11/01/2026",
     "onePageListNum":10,
@@ -17,5 +16,6 @@
     "showPostSource":1,
     "bottomText":"❤️ 转载文章请注明出处，谢谢！❤️",
     "needComment":1,
-    "allHead":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js'></script>"    
+    "allHead":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekVercount.js'></script>",
+    "script":"<script src='https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js'></script>"
 }
