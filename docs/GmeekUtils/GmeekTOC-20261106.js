@@ -1,6 +1,6 @@
 /**
  * GmeekTOC-20261106.js
- * GmeekTOC 文章目录工具 固定展开5级目录，隐藏6级目录，移除折叠逻辑
+ * GmeekTOC 文章目录工具 固定展开5级目录，物理移除6级目录，移除折叠逻辑
  * 20261106 版本号 2026年11月6日 发版的稳定版
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  *
@@ -105,12 +105,12 @@ function hideEmptyTOC() {
 }
 
 /* ==================== 目录展开与隐藏控制 ==================== */
-// 强制展开 1-5 级，隐藏 6 级节点及其父级列表
+// 强制展开 1-5 级，物理移除 6 级节点及其父级列表
 function processTOCLevels() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
-    // 1. 强制展开所有 1-5 级目录列表，清除 tocbot 折叠痕迹
+    // 1. 强制展开所有目录列表，清除 tocbot 折叠痕迹
     var lists = toc.querySelectorAll('ol.toc-list, ul.toc-list');
     lists.forEach(function (list) {
         list.style.setProperty('display', 'block', 'important');
@@ -124,10 +124,28 @@ function processTOCLevels() {
         btn.style.display = 'none';
     });
 
-    // 3. 隐藏 6 级目录节点（写死内联样式，无视一切外部覆盖）
+    // 3. 【终极杀招】从 DOM 树中直接移除 6 级目录节点
+    // 先找所有 6 级的 li
     var level6Lis = toc.querySelectorAll('li[data-level="6"]');
     level6Lis.forEach(function (li) {
-        li.style.setProperty('display', 'none', 'important');
+        if (li.parentNode) {
+            li.parentNode.removeChild(li);
+        }
+    });
+
+    // 4. 如果是部分 tocbot 版本不生成 data-level=6，而是将 6 级置于 5 级的更深层 ol 中
+    // 我们把所有包含 "data-level=6" 的父级 ol（即第5级标题下的子列表）直接移除，防止留下空隙
+    var level5Lis = toc.querySelectorAll('li[data-level="5"]');
+    level5Lis.forEach(function (li) {
+        var subLists = li.querySelectorAll('ol.toc-list');
+        subLists.forEach(function (subList) {
+            // 如果这个子列表里面全都是 6 级（或者已经没有其他的了），删掉它
+            // 实际上既然 6 级已被删，这个 ol 可能会空掉，这里保险起见再清一遍
+            var items = subList.querySelectorAll('li');
+            if (items.length === 0) {
+                subList.remove();
+            }
+        });
     });
 }
 
@@ -237,7 +255,7 @@ function injectTOCStyle() {
         .toc.toc .toc-list-item { margin: 2px 0; list-style: none; }
         .toc.toc .toc-list .toc-list { padding-left: 12px; }
 
-        /* 关键：CSS 层面直接封杀 6 级目录的渲染 */
+        /* 多重保险：用属性选择器再封杀一遍 6 级 */
         .toc.toc li[data-level="6"] {
             display: none !important;
         }
@@ -268,7 +286,7 @@ function injectTOCStyle() {
             background-color: rgba(96, 165, 250, 0.18);
         }
 
-        /* 禁止 tocbot 自身的 max-height 过渡动画，防止逻辑冲突 */
+        /* 禁止 tocbot 自身的 max-height 过渡动画 */
         .toc .is-collapsible {
             transition: none !important;
         }
@@ -301,8 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
             contentSelector: '.markdown-body',
             headingSelector: 'h1, h2, h3, h4, h5, h6',
             scrollSmooth: false,
-            // 深度 6，让 tocbot 全部渲染出来（我们靠 CSS 和 JS 去砍）
-            collapseDepth: 6 
+            collapseDepth: 6
         });
 
         var applyAll = function () {
@@ -314,6 +331,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // 延迟执行以确保 tocbot 渲染完毕
         setTimeout(applyAll, 50);
         setTimeout(applyAll, 300);
+        setTimeout(applyAll, 800); // 再加一层保险，防止网络慢渲染晚
 
         // 防止 tocbot 异步渲染后修改 DOM 导致 6 级重新出现
         var toc = document.querySelector('.toc');
@@ -327,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 if (needFix) {
                     processTOCLevels();
-                    mo.disconnect(); 
+                    mo.disconnect();
                     setTimeout(function () { mo.observe(toc, { attributes: true, subtree: true, attributeFilter: ['class'] }); }, 100);
                 }
             });
@@ -351,5 +369,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * 2026年11月7日00:26:11
+ * 2026年11月7日00:39:55
  */
