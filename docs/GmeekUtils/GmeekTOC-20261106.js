@@ -35,12 +35,23 @@ function nextFrame(fn) {
 }
 
 /* ==================== 主题：读取 html[data-color-mode] ==================== */
+// [FIX-3 保留] 兼容 class="dark" / body 上的 class
 function getMode() {
-    var mode = document.documentElement.getAttribute('data-color-mode');
+    var html = document.documentElement;
+    var mode = html.getAttribute('data-color-mode');
     if (mode === 'dark' || mode === 'light') return mode;
-    // [FIX-3] 兼容 class="dark" 的切换方式
-    if (document.documentElement.classList.contains('dark')) return 'dark';
-    if (document.documentElement.classList.contains('light')) return 'light';
+    // 兼容 body[data-color-mode]
+    if (document.body) {
+        var bodyMode = document.body.getAttribute('data-color-mode');
+        if (bodyMode === 'dark' || bodyMode === 'light') return bodyMode;
+    }
+    // 兼容 class="dark" / class="light"
+    if (html.classList.contains('dark')) return 'dark';
+    if (html.classList.contains('light')) return 'light';
+    if (document.body) {
+        if (document.body.classList.contains('dark')) return 'dark';
+        if (document.body.classList.contains('light')) return 'light';
+    }
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
@@ -65,12 +76,10 @@ function colorizeTOC() {
     var lightHover = dark ? 74 : 32;
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
-        // [FIX-1] 主题变化时必须重算，不再被 data-colored 早退
-        var alreadyColored = a.dataset.colored === 'true';
+        // [FIX-1 保留] 色相沿用，但主题变化必须重算颜色
         var sameTheme = a.dataset.coloredTheme === mode;
-        if (alreadyColored && sameTheme) return;
+        if (sameTheme) return;
 
-        // [FIX-5] 色相只在首次随机，之后沿用，避免切换主题时颜色跳变
         var hue = a.dataset.hue !== undefined
             ? parseInt(a.dataset.hue, 10)
             : Math.floor(Math.random() * 360);
@@ -81,7 +90,7 @@ function colorizeTOC() {
         a.style.color = 'hsl(' + hue + ', 65%, ' + light + '%)';
         a.style.transition = 'color 0.25s, background-color 0.25s';
 
-        // [FIX-4] 先移除旧监听再绑定，防止累积
+        // [FIX-4 保留] 先移除旧监听再绑定
         if (a._onEnter) a.removeEventListener('mouseenter', a._onEnter);
         if (a._onLeave) a.removeEventListener('mouseleave', a._onLeave);
 
@@ -101,7 +110,6 @@ var emptyTOCChecked = false;
 function hideEmptyTOC() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
-    // [FIX-6] 二次校验：tocbot 可能延迟渲染，避免误隐藏
     if (!toc.querySelector('a.toc-link')) {
         if (!emptyTOCChecked) {
             emptyTOCChecked = true;
@@ -124,29 +132,23 @@ function enhanceTOCBehavior() {
     if (!toc || toc.dataset.enhanced === 'true') return;
     toc.dataset.enhanced = 'true';
 
-    // 隐藏 6 级目录的折叠按钮
     toc.querySelectorAll('li[data-level="6"] .toc-collapse-button').forEach(function (btn) {
         btn.style.display = 'none';
     });
 
-    // 事件代理
     toc.addEventListener('click', function (e) {
         var link = e.target.closest('a.toc-link');
         if (!link) return;
-
         var li = link.closest('li');
         if (!li) return;
 
-        // [OPT-4] level 缺失时容错为 1，避免 NaN
         var rawLevel = li.getAttribute('data-level');
         var level = rawLevel ? parseInt(rawLevel, 10) : 1;
         if (isNaN(level)) level = 1;
-
         if (level >= 6) return;
 
         var subList = li.querySelector('.toc-list');
         if (subList) {
-            // 让 tocbot 内部跳转逻辑先执行，再强制展开
             setTimeout(function () {
                 subList.querySelectorAll('.toc-list-item').forEach(function (item) {
                     item.classList.add('is-open');
@@ -161,7 +163,6 @@ function enhanceTOCBehavior() {
 }
 
 /* ==================== 主题绘制 ==================== */
-// [OPT-1] 主题色全部由 CSS 变量驱动，JS 只切 data-theme + 更新变量
 function paintTOC(mode) {
     var toc = document.querySelector('.toc');
     if (!toc) return;
@@ -184,81 +185,77 @@ function paintTOC(mode) {
     }
 }
 
-/* ==================== 主题刷新 ==================== */
+/* ==================== 主题刷新（参考 Top-Foot 的简洁做法） ==================== */
 var currentMode = null;
 var themeTicking = false;
 
-function refreshTheme(force) {
+// [FIX-A] 去掉 force 参数，直接按当前 mode 重绘；重绘后同步 currentMode
+function refreshTheme() {
     if (themeTicking) return;
     themeTicking = true;
     nextFrame(function () {
         themeTicking = false;
         var mode = getMode();
-        // [FIX-2] force 或模式真正变化时才重绘；首次必执行
-        if (!force && mode === currentMode) return;
+        // 不比对 currentMode，一律重绘（MutationObserver 已是低频事件，成本可忽略）
         currentMode = mode;
         paintTOC(mode);
         colorizeTOC();
     });
 }
 
-/* ==================== 主题自动触发（五层监听 + 去抖） ==================== */
+/* ==================== 主题自动触发（参考 Top-Foot） ==================== */
 function setupThemeAutoTrigger() {
-    var lastMode = getMode();
     var debounceTimer = null;
-
-    // 统一入口：去抖后比对，模式变了才刷新
-    function trigger(reason) {
+    function scheduleRefresh() {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(function () {
-            var mode = getMode();
-            if (mode !== lastMode) {
-                lastMode = mode;
-                refreshTheme(true);
-            }
+            debounceTimer = null;
+            refreshTheme();
         }, 30);
     }
 
-    // ---------- ① 属性/class 变化（MutationObserver）----------
+    // ---------- ① MutationObserver：只监听 data-color-mode / class ----------
+    // [FIX-B] 去掉 'style'（paintTOC 不写 documentElement 的 style，但 'style' 会引入噪声）
+    // [FIX-C] 回调直接 scheduleRefresh，不再做 mode 比对（比对逻辑移到 refreshTheme 内部）
     if (window.MutationObserver) {
         var observer = new MutationObserver(function (mutations) {
             for (var i = 0; i < mutations.length; i++) {
                 var m = mutations[i];
-                if (m.type === 'attributes') {
-                    trigger('MutationObserver:' + m.attributeName);
+                if (m.type === 'attributes' &&
+                    (m.attributeName === 'data-color-mode' || m.attributeName === 'class')) {
+                    scheduleRefresh();
                     return;
                 }
             }
         });
         observer.observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ['data-color-mode', 'class', 'style']
+            attributeFilter: ['data-color-mode', 'class']
         });
-        // 同时监听 body，部分主题把 class 挂在 body 上
         if (document.body) {
             observer.observe(document.body, {
                 attributes: true,
-                attributeFilter: ['class', 'data-color-mode']
+                attributeFilter: ['data-color-mode', 'class']
             });
         }
     }
 
-    // ---------- ② 系统偏好变化（matchMedia）----------
+    // ---------- ② 系统偏好变化 ----------
     if (window.matchMedia) {
         var media = window.matchMedia('(prefers-color-scheme: dark)');
-        var mediaHandler = function () { trigger('matchMedia'); };
+        var mediaHandler = function () { scheduleRefresh(); };
         if (media.addEventListener) media.addEventListener('change', mediaHandler);
         else if (media.addListener) media.addListener(mediaHandler);
     }
 
-    // ---------- ③ 自定义事件（主题框架 dispatch）----------
+    // ---------- ③ 自定义事件 ----------
     ['gmeek:themechange', 'themechange', 'color-mode-change', 'darkmode:toggle']
         .forEach(function (name) {
-            document.addEventListener(name, function () { trigger('event:' + name); });
-            window.addEventListener(name, function () { trigger('event:' + name); });
+            document.addEventListener(name, scheduleRefresh);
+            window.addEventListener(name, scheduleRefresh);
         });
 
-    // ---------- ④ 点击拦截（兜底：切换按钮点击后延时检测）----------
+    // ---------- ④ 点击拦截（兜底） ----------
     document.addEventListener('click', function (e) {
         var t = e.target;
         var hint = '';
@@ -266,31 +263,23 @@ function setupThemeAutoTrigger() {
             hint = (t.id || '') + ' ' + (t.className || '') + ' ' +
                    (t.getAttribute && (t.getAttribute('aria-label') || '') || '');
             if (/theme|dark|mode|color-scheme|switch/i.test(hint)) {
-                setTimeout(function () { trigger('click-hint'); }, 120);
-                setTimeout(function () { trigger('click-hint-late'); }, 400);
+                setTimeout(scheduleRefresh, 120);
+                setTimeout(scheduleRefresh, 400);
                 break;
             }
             t = t.parentNode;
         }
     }, true);
 
-    // ---------- ⑤ 最后兜底：低频轮询（1s 一次，模式变了才刷新）----------
-    var pollTimer = setInterval(function () {
-        var mode = getMode();
-        if (mode !== lastMode) {
-            lastMode = mode;
-            refreshTheme(true);
-        }
-    }, 1000);
-    // 页面隐藏时停止轮询，节省资源
+    // ---------- ⑤ 低频轮询兜底（1s，去掉 mode 比对，直接刷新） ----------
+    // [FIX-D] 轮询里不再比对 lastMode，直接 scheduleRefresh——paintTOC/colorizeTOC 内部
+    //         对相同 mode 是幂等的（dataset.coloredTheme 早退），无性能问题
+    var pollTimer = setInterval(scheduleRefresh, 1000);
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) {
             clearInterval(pollTimer);
         } else {
-            pollTimer = setInterval(function () {
-                var mode = getMode();
-                if (mode !== lastMode) { lastMode = mode; refreshTheme(true); }
-            }, 1000);
+            pollTimer = setInterval(scheduleRefresh, 1000);
         }
     });
 }
@@ -404,7 +393,6 @@ document.addEventListener('DOMContentLoaded', function () {
     createTOC();
     injectTOCStyle();
 
-    // 默认深度：随机 3 或 4
     var randomDepth = Math.random() < 0.5 ? 3 : 4;
 
     loadResource('script', {
@@ -430,12 +418,12 @@ document.addEventListener('DOMContentLoaded', function () {
             enhanceTOCBehavior();
         }, 300);
 
-        // ✅ [AUTO-1] 主题切换自动触发（五层监听 + 去抖）
+        // 主题切换自动触发
         setupThemeAutoTrigger();
 
-        // [OPT-3] 兜底刷新，覆盖 tocbot 异步渲染
-        setTimeout(function () { refreshTheme(true); }, 500);
-        setTimeout(function () { refreshTheme(true); }, 1200);
+        // 兜底刷新，覆盖 tocbot 异步渲染
+        setTimeout(refreshTheme, 500);
+        setTimeout(refreshTheme, 1200);
     });
 
     loadResource('link', {
@@ -443,7 +431,6 @@ document.addEventListener('DOMContentLoaded', function () {
         href: 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.css'
     });
 
-    // 补全 heading id
     var headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6');
     headings.forEach(function (heading) {
         if (!heading.id) {
@@ -451,17 +438,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // 底部占位，保证能滚动到末尾
     var footerPlaceholder = document.createElement('div');
     footerPlaceholder.style.height = window.innerHeight + 'px';
     document.body.appendChild(footerPlaceholder);
 
     console.log("\n %c GmeekTocBot Plugins https://github.com/Meekdai/Gmeek \n", "padding:5px 0;background:#C333D0;color:#fff");
 });
-
-/* ==================== 对外 API（可选手动调用） ==================== */
-window.GmeekTOC = {
-    refresh: function () { refreshTheme(true); },
-    getMode: getMode,
-    colorize: colorizeTOC
-};
