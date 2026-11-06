@@ -1,6 +1,6 @@
 /**
  * GmeekTOC-20261106.js
- * GmeekTOC 文章目录工具 固定展开5级目录，物理移除6级目录，移除折叠逻辑
+ * GmeekTOC 文章目录工具 强制展开 1-5 级目录，物理移除 6 级目录，隐藏空目录
  * 20261106 版本号 2026年11月6日 发版的稳定版
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  *
@@ -62,32 +62,25 @@ function createTOC() {
     }
 }
 
-/* ==================== 字体随机彩色 ==================== */
+/* ==================== 字体随机彩色（沿用 1104 版实现） ==================== */
 function colorizeTOC() {
-    var isDark = (getMode() === 'dark');
-    var lightL = isDark ? 68 : 42;
-    var hoverL = isDark ? 78 : 32;
-
+    var dark = getMode() === 'dark';
+    var light = dark ? 64 : 42;
+    var lightHover = dark ? 74 : 32;
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
-        var hue = a.dataset.hue !== undefined
-            ? parseInt(a.dataset.hue, 10)
-            : Math.floor(Math.random() * 360);
-        a.dataset.hue = String(hue);
+        if (a.dataset.colored) return;
+        a.dataset.colored = 'true';
 
-        var baseColor = hsl(hue, 65, lightL);
-        var hoverColor = hsl(hue, 75, hoverL);
-
-        a.style.setProperty('color', baseColor, 'important');
+        var hue = Math.floor(Math.random() * 360);
+        a.style.color = hsl(hue, 65, light);
         a.style.transition = 'color 0.25s, background-color 0.25s';
-
-        if (a._onEnter) a.removeEventListener('mouseenter', a._onEnter);
-        if (a._onLeave) a.removeEventListener('mouseleave', a._onLeave);
-
-        a._onEnter = function () { a.style.setProperty('color', hoverColor, 'important'); };
-        a._onLeave = function () { a.style.setProperty('color', baseColor, 'important'); };
-        a.addEventListener('mouseenter', a._onEnter);
-        a.addEventListener('mouseleave', a._onLeave);
+        a.addEventListener('mouseenter', function () {
+            a.style.color = hsl(hue, 75, lightHover);
+        });
+        a.addEventListener('mouseleave', function () {
+            a.style.color = hsl(hue, 65, light);
+        });
     });
 }
 
@@ -104,13 +97,12 @@ function hideEmptyTOC() {
     }
 }
 
-/* ==================== 目录展开与隐藏控制 ==================== */
-// 强制展开 1-5 级，物理移除 6 级节点及其父级列表
+/* ==================== 目录展开控制：1-5 级强制展开，6 级物理移除 ==================== */
 function processTOCLevels() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
-    // 1. 强制展开所有目录列表，清除 tocbot 折叠痕迹
+    // 1. 强制展开所有目录列表，清除 tocbot 折叠痕迹（1-5 级全部展开）
     var lists = toc.querySelectorAll('ol.toc-list, ul.toc-list');
     lists.forEach(function (list) {
         list.style.setProperty('display', 'block', 'important');
@@ -119,33 +111,29 @@ function processTOCLevels() {
         list.classList.remove('is-collapsible', 'is-collapsed');
     });
 
-    // 2. 移除所有折叠按钮
+    // 2. 隐藏所有折叠按钮
     toc.querySelectorAll('.toc-collapse-button').forEach(function (btn) {
         btn.style.display = 'none';
     });
 
-    // 3. 【终极杀招】从 DOM 树中直接移除 6 级目录节点
-    // 先找所有 6 级的 li
+    // 3. 物理移除 6 级目录节点
     var level6Lis = toc.querySelectorAll('li[data-level="6"]');
     level6Lis.forEach(function (li) {
-        if (li.parentNode) {
-            li.parentNode.removeChild(li);
-        }
+        if (li.parentNode) li.parentNode.removeChild(li);
     });
 
-    // 4. 如果是部分 tocbot 版本不生成 data-level=6，而是将 6 级置于 5 级的更深层 ol 中
-    // 我们把所有包含 "data-level=6" 的父级 ol（即第5级标题下的子列表）直接移除，防止留下空隙
+    // 4. 清理因移除 6 级而变空的子列表（避免留下空隙）
     var level5Lis = toc.querySelectorAll('li[data-level="5"]');
     level5Lis.forEach(function (li) {
-        var subLists = li.querySelectorAll('ol.toc-list');
-        subLists.forEach(function (subList) {
-            // 如果这个子列表里面全都是 6 级（或者已经没有其他的了），删掉它
-            // 实际上既然 6 级已被删，这个 ol 可能会空掉，这里保险起见再清一遍
-            var items = subList.querySelectorAll('li');
-            if (items.length === 0) {
-                subList.remove();
-            }
+        li.querySelectorAll('ol.toc-list').forEach(function (subList) {
+            if (subList.querySelectorAll('li').length === 0) subList.remove();
         });
+    });
+
+    // 5. 5 级目录本身不再展开（无子列表可展开），但保持可见
+    toc.querySelectorAll('li[data-level="5"]').forEach(function (li) {
+        li.classList.remove('is-collapsible', 'is-collapsed');
+        li.style.setProperty('max-height', 'none', 'important');
     });
 }
 
@@ -238,12 +226,11 @@ function injectTOCStyle() {
             width: 220px;
             padding: 16px 16px 16px 20px;
             border-radius: 14px;
-            /* 目录区域高度改为 70% */
             max-height: 70vh;
             overflow-y: auto;
             z-index: 100;
             scrollbar-width: thin;
-            background: transparent !important; 
+            background: transparent !important;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
         .toc.toc::-webkit-scrollbar { width: 6px; background-color: transparent; }
@@ -255,7 +242,7 @@ function injectTOCStyle() {
         .toc.toc .toc-list-item { margin: 2px 0; list-style: none; }
         .toc.toc .toc-list .toc-list { padding-left: 12px; }
 
-        /* 多重保险：用属性选择器再封杀一遍 6 级 */
+        /* 多重保险：CSS 层再封杀一遍 6 级 */
         .toc.toc li[data-level="6"] {
             display: none !important;
         }
@@ -319,6 +306,8 @@ document.addEventListener('DOMContentLoaded', function () {
             contentSelector: '.markdown-body',
             headingSelector: 'h1, h2, h3, h4, h5, h6',
             scrollSmooth: false,
+            // 先让 tocbot 全部渲染，1-5 级展开由 processTOCLevels 统一强制展开
+            // 6 级随后被物理移除
             collapseDepth: 6
         });
 
@@ -331,9 +320,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // 延迟执行以确保 tocbot 渲染完毕
         setTimeout(applyAll, 50);
         setTimeout(applyAll, 300);
-        setTimeout(applyAll, 800); // 再加一层保险，防止网络慢渲染晚
+        setTimeout(applyAll, 800); // 网络慢渲染晚的保险层
 
-        // 防止 tocbot 异步渲染后修改 DOM 导致 6 级重新出现
+        // 防止 tocbot 异步渲染后修改 DOM 导致折叠状态或 6 级重新出现
         var toc = document.querySelector('.toc');
         if (toc && window.MutationObserver) {
             var mo = new MutationObserver(function (mutations) {
@@ -346,7 +335,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (needFix) {
                     processTOCLevels();
                     mo.disconnect();
-                    setTimeout(function () { mo.observe(toc, { attributes: true, subtree: true, attributeFilter: ['class'] }); }, 100);
+                    setTimeout(function () {
+                        mo.observe(toc, { attributes: true, subtree: true, attributeFilter: ['class'] });
+                    }, 100);
                 }
             });
             mo.observe(toc, { attributes: true, subtree: true, attributeFilter: ['class'] });
@@ -367,7 +358,6 @@ document.addEventListener('DOMContentLoaded', function () {
     footerPlaceholder.style.height = window.innerHeight + 'px';
     document.body.appendChild(footerPlaceholder);
 });
-
 /**
- * 2026年11月7日00:39:55
+ * 2026年11月7日00:57:47
  */
