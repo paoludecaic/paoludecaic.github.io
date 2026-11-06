@@ -3,6 +3,9 @@
  * GmeekTOC 文章目录工具 随机展开3/4级目录，点击展开下一级，最深展示6级
  * 20261106 版本号 2026年11月6日 发版的稳定版
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
+ *
+ * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js
+ * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js'></script>"
 **/
 
 /* ==================== 通用工具 ==================== */
@@ -32,22 +35,47 @@ function nextFrame(fn) {
 }
 
 /* ==================== 主题判定 ==================== */
+// Gmeek 的 data-color-mode 初始为 "auto"，手动切换后变成 "dark"/"light"。
+// 当值为 auto 或缺失时，退化为读取正文区域实际背景亮度来判断，
+// 避免 "auto + 系统浅色" 永远判为 light 的问题。
 function getMode() {
     var html = document.documentElement;
-    // 优先 data-color-mode
     var mode = html.getAttribute('data-color-mode');
     if (mode === 'dark' || mode === 'light') return mode;
+
     if (document.body) {
         var bm = document.body.getAttribute('data-color-mode');
         if (bm === 'dark' || bm === 'light') return bm;
     }
-    // 次选 class
+
     if (html.classList.contains('dark')) return 'dark';
     if (html.classList.contains('light')) return 'light';
     if (document.body) {
         if (document.body.classList.contains('dark')) return 'dark';
         if (document.body.classList.contains('light')) return 'light';
     }
+
+    // 读正文实际背景亮度（覆盖 data-color-mode="auto" 的情况）
+    var probe = document.querySelector('.markdown-body')
+             || document.querySelector('#content')
+             || document.querySelector('article')
+             || document.body;
+    if (probe) {
+        var el = probe;
+        while (el && el !== document.documentElement) {
+            var bg = getComputedStyle(el).backgroundColor;
+            var m = bg.match(/[\d.]+/g);
+            if (m && m.length >= 3) {
+                var a = m.length >= 4 ? parseFloat(m[3]) : 1;
+                if (a > 0.1) {
+                    var lum = 0.299 * +m[0] + 0.587 * +m[1] + 0.114 * +m[2];
+                    return lum < 128 ? 'dark' : 'light';
+                }
+            }
+            el = el.parentElement;
+        }
+    }
+
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
@@ -65,7 +93,7 @@ function createTOC() {
 }
 
 /* ==================== 目录链接随机彩色 ==================== */
-// [FIX] 去掉 coloredTheme 早退，每次全量重算；色相沿用 dataset.hue
+// 每次全量重算，色相沿用 dataset.hue，避免主题切换时颜色跳变
 function colorizeTOC() {
     var mode = getMode();
     var dark = mode === 'dark';
@@ -81,11 +109,9 @@ function colorizeTOC() {
         var baseColor = 'hsl(' + hue + ', 65%, ' + lightL + '%)';
         var hoverColor = 'hsl(' + hue + ', 75%, ' + hoverL + '%)';
 
-        // 直接写 style.color，不依赖 dataset 缓存
         a.style.color = baseColor;
         a.style.transition = 'color 0.25s, background-color 0.25s';
 
-        // 移除旧监听再绑定，防止累积
         if (a._onEnter) a.removeEventListener('mouseenter', a._onEnter);
         if (a._onLeave) a.removeEventListener('mouseleave', a._onLeave);
 
@@ -150,33 +176,26 @@ function enhanceTOCBehavior() {
 }
 
 /* ==================== 主题绘制 ==================== */
-// [FIX 核心] 只写 data-theme 属性，不写内联 CSS 变量。
-// 颜色全部由注入的 CSS 用 .toc[data-theme="dark"] 选择器驱动。
-// 这样无论 tocbot 怎么改 .toc 的 style / class，只要 data-theme 在，颜色就正确。
+// 只写 data-theme 属性，颜色全部由注入 CSS 的 [data-theme="dark"] 选择器驱动。
+// 不写内联 CSS 变量，避免被 tocbot 对 .toc 的 style 改写清掉。
+// 去掉 "属性相同就跳过" 的守卫，保证外部任何改动都能被纠正。
 function paintTOC(mode) {
     var toc = document.querySelector('.toc');
     if (!toc) return;
-    if (toc.getAttribute('data-theme') !== mode) {
-        toc.setAttribute('data-theme', mode);
-    }
+    toc.setAttribute('data-theme', mode);
 }
 
 /* ==================== 主题刷新 ==================== */
-// 参考 Top-Foot：不做比对、不做去抖，每次调用直接重绘
-var themeTicking = false;
+// 同步执行，不用 rAF / ticking 节流。
+// 之前 rAF + themeTicking 会导致 MutationObserver 回调时读到变化前的 data-color-mode，
+// 或者后续 mutation 被 ticking 吞掉，从而永远不刷新。
 function refreshTheme() {
-    if (themeTicking) return;
-    themeTicking = true;
-    nextFrame(function () {
-        themeTicking = false;
-        var mode = getMode();
-        paintTOC(mode);
-        colorizeTOC();
-    });
+    var mode = getMode();
+    paintTOC(mode);
+    colorizeTOC();
 }
 
 /* ==================== 主题自动触发 ==================== */
-// 参考 Top-Foot：MutationObserver 回调直接 refreshTheme，不做二次比对、不去抖
 function setupThemeAutoTrigger() {
     // ① MutationObserver：监听 html/body 的 data-color-mode 与 class
     if (window.MutationObserver) {
@@ -223,7 +242,7 @@ function setupThemeAutoTrigger() {
         }
     }, true);
 
-    // ⑤ 低频轮询兜底（参考 Top-Foot：直接刷新，不比对）
+    // ⑤ 低频轮询兜底（1s，直接刷新，幂等无副作用）
     var pollTimer = setInterval(refreshTheme, 1000);
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) clearInterval(pollTimer);
@@ -232,10 +251,12 @@ function setupThemeAutoTrigger() {
 }
 
 /* ==================== 样式注入 ==================== */
-// [FIX 核心] 颜色全部由 .toc[data-theme] 选择器驱动，不依赖内联 CSS 变量
+// 用 .toc.toc 双类提升特异性到 (0,2,0)，压过 tocbot.css 的 (0,1,0)。
+// 背景/边框加 !important，确保暗色切换一定能覆盖。
+// 颜色全部由 [data-theme="dark"] 选择器驱动，不依赖内联 CSS 变量。
 function injectTOCStyle() {
     var css = `
-        .toc {
+        .toc.toc {
             position: fixed;
             top: 130px;
             left: 50%;
@@ -248,50 +269,43 @@ function injectTOCStyle() {
             z-index: 100;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
             scrollbar-width: thin;
-        }
-
-        /* ---------- 亮色（默认） ---------- */
-        .toc {
-            background: #ffffff;
-            border: 1px solid #e5e7eb;
+            background: #ffffff !important;
+            border: 1px solid #e5e7eb !important;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.12),
                         0 8px 10px -6px rgba(0,0,0,0.08),
                         0 0 0 1px rgba(255,255,255,0.6) inset;
             scrollbar-color: #cbd5e1 transparent;
         }
-        .toc:hover {
+        .toc.toc:hover {
             box-shadow: 0 14px 30px -6px rgba(0,0,0,0.16),
                         0 10px 14px -8px rgba(0,0,0,0.1),
                         0 0 0 1px rgba(255,255,255,0.8) inset;
         }
 
-        /* ---------- 暗色 ---------- */
-        .toc[data-theme="dark"] {
-            background: rgba(30, 41, 59, 0.92);
-            border: 1px solid rgba(255,255,255,0.08);
+        .toc.toc[data-theme="dark"] {
+            background: rgba(30, 41, 59, 0.92) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5),
                         0 8px 10px -6px rgba(0,0,0,0.35),
                         0 0 0 1px rgba(255,255,255,0.06) inset;
             scrollbar-color: #475569 transparent;
         }
-        .toc[data-theme="dark"]:hover {
+        .toc.toc[data-theme="dark"]:hover {
             box-shadow: 0 14px 30px -6px rgba(0,0,0,0.6),
                         0 10px 14px -8px rgba(0,0,0,0.45),
                         0 0 0 1px rgba(255,255,255,0.08) inset;
         }
 
-        /* ---------- 滚动条 ---------- */
-        .toc::-webkit-scrollbar { width: 6px; background-color: transparent; }
-        .toc::-webkit-scrollbar-track { background-color: transparent; }
-        .toc::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
-        .toc[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
+        .toc.toc::-webkit-scrollbar { width: 6px; background-color: transparent; }
+        .toc.toc::-webkit-scrollbar-track { background-color: transparent; }
+        .toc.toc::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .toc.toc[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
 
-        /* ---------- 列表 ---------- */
-        .toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
-        .toc .toc-list-item { margin: 2px 0; list-style: none; }
-        .toc .toc-list .toc-list { padding-left: 12px; }
+        .toc.toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
+        .toc.toc .toc-list-item { margin: 2px 0; list-style: none; }
+        .toc.toc .toc-list .toc-list { padding-left: 12px; }
 
-        .toc a.toc-link {
+        .toc.toc a.toc-link {
             display: block;
             padding: 4px 8px;
             font-size: 0.85rem;
@@ -301,36 +315,36 @@ function injectTOCStyle() {
             border-left: 2px solid transparent;
             word-break: break-word;
         }
-        .toc a.toc-link:hover {
+        .toc.toc a.toc-link:hover {
             background-color: #f3f4f6;
             border-left-color: currentColor;
         }
-        .toc[data-theme="dark"] a.toc-link:hover {
+        .toc.toc[data-theme="dark"] a.toc-link:hover {
             background-color: #334155;
         }
-        .toc .is-active-link {
+        .toc.toc .is-active-link {
             font-weight: 600;
             background-color: #eff6ff;
             border-left-color: currentColor;
         }
-        .toc[data-theme="dark"] .is-active-link {
+        .toc.toc[data-theme="dark"] .is-active-link {
             background-color: #1e3a8a;
             color: #e0e7ff !important;
         }
 
-        .toc .is-collapsible {
+        .toc.toc .is-collapsible {
             max-height: 0;
             overflow: hidden;
             opacity: 0;
             transition: max-height 0.3s ease, opacity 0.3s ease;
         }
-        .toc .is-collapsible.is-open {
+        .toc.toc .is-collapsible.is-open {
             max-height: 1000px;
             opacity: 1;
         }
 
         @media (max-width: 1249px) {
-            .toc {
+            .toc.toc {
                 position: static;
                 transform: none;
                 width: 100%;
@@ -398,8 +412,9 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log("\n %c GmeekTocBot Plugins https://github.com/Meekdai/Gmeek \n", "padding:5px 0;background:#C333D0;color:#fff");
 });
 
+
 /**
  * TODO 随机展开3/4级目录，点击展开下一级，最深展示6级 目前未完成
- * 2026年11月6日20:23:25
+ * 2026年11月6日20:43:44
  * 
  */
