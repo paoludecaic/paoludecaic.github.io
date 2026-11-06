@@ -8,6 +8,7 @@
  * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js'></script>"
 **/
 
+
 /* ==================== 通用工具 ==================== */
 function loadResource(type, attributes, callback) {
     var element;
@@ -34,48 +35,13 @@ function nextFrame(fn) {
     (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(fn);
 }
 
-/* ==================== 主题判定：直接读实际背景亮度 ==================== */
-// 不依赖 data-color-mode / class，因为 Gmeek 切换主题时这些属性可能不变。
-// 逐级向上找第一个有非透明背景色的元素，用亮度判断明暗。
-function parseColor(str) {
-    if (!str) return null;
-    var m = str.match(/[\d.]+/g);
-    if (!m || m.length < 3) return null;
-    return {
-        r: +m[0],
-        g: +m[1],
-        b: +m[2],
-        a: m.length >= 4 ? parseFloat(m[3]) : 1
-    };
-}
-
-function isDarkColor(colorStr) {
-    var c = parseColor(colorStr);
-    if (!c || c.a < 0.1) return null; // 透明，无法判断
-    var lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
-    return lum < 128;
-}
-
-function detectDark() {
-    // 从正文容器开始，逐级向上找第一个不透明背景
-    var probe = document.querySelector('.markdown-body')
-             || document.querySelector('#content')
-             || document.querySelector('article')
-             || document.body;
-    var el = probe;
-    while (el && el !== document.documentElement) {
-        var bg = getComputedStyle(el).backgroundColor;
-        var dark = isDarkColor(bg);
-        if (dark !== null) return dark;
-        el = el.parentElement;
-    }
-    // 再试 html 本身
-    var htmlBg = getComputedStyle(document.documentElement).backgroundColor;
-    var htmlDark = isDarkColor(htmlBg);
-    if (htmlDark !== null) return htmlDark;
-
-    // 最后退化为系统偏好
-    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+/* ==================== 主题判定 (参考 GmeekButton) ==================== */
+// 直接读取 html 的 data-color-mode，与官方主题切换器保持一致
+function getMode() {
+    var mode = document.documentElement.getAttribute('data-color-mode');
+    if (mode === 'dark' || mode === 'light') return mode;
+    // 如果为 auto 或未设置，回退到系统偏好
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 /* ==================== 目录容器 ==================== */
@@ -93,7 +59,8 @@ function createTOC() {
 
 /* ==================== 目录链接随机彩色 ==================== */
 function colorizeTOC() {
-    var dark = detectDark();
+    var mode = getMode();
+    var dark = (mode === 'dark');
     var lightL = dark ? 64 : 42;
     var hoverL = dark ? 74 : 32;
     var links = document.querySelectorAll('.toc a.toc-link');
@@ -173,33 +140,18 @@ function enhanceTOCBehavior() {
 }
 
 /* ==================== 主题绘制 ==================== */
-// 只写 data-theme 属性，颜色由注入 CSS 的 [data-theme="dark"] 选择器驱动。
-// 去掉"相同就跳过"的守卫，保证 tocbot 改写 style 后 data-theme 被清掉时能补回。
-var lastPaintedMode = null;
-function paintTOC(dark) {
-    var toc = document.querySelector('.toc');
-    if (!toc) return;
-    var mode = dark ? 'dark' : 'light';
-    // 即使相同也重写一次，防止 tocbot 把属性冲掉
-    toc.setAttribute('data-theme', mode);
-    if (lastPaintedMode !== mode) {
-        lastPaintedMode = mode;
-    }
-}
-
-/* ==================== 背景色变化检测与刷新 ==================== */
-var lastBodyBg = null;
+var currentMode = null;
 var themeTicking = false;
 
-function readBodyBg() {
-    var body = document.body;
-    if (!body) return '';
-    var bg = getComputedStyle(body).backgroundColor;
-    // body 透明时读 html
-    if (!bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
-        bg = getComputedStyle(document.documentElement).backgroundColor;
+function paintTOC() {
+    var toc = document.querySelector('.toc');
+    if (!toc) return;
+    var mode = getMode();
+    // 无论是否相同都重写，防止被 tocbot 冲掉
+    toc.setAttribute('data-theme', mode);
+    if (currentMode !== mode) {
+        currentMode = mode;
     }
-    return bg;
 }
 
 function refreshTheme() {
@@ -207,84 +159,30 @@ function refreshTheme() {
     themeTicking = true;
     nextFrame(function () {
         themeTicking = false;
-        var bg = readBodyBg();
-        var dark = detectDark();
-
-        // 背景色变化 或 主题明暗变化 或 .toc 的 data-theme 丢失 → 重绘
+        var mode = getMode();
         var toc = document.querySelector('.toc');
-        var attrMissing = toc && toc.getAttribute('data-theme') !== (dark ? 'dark' : 'light');
-
-        if (bg !== lastBodyBg || attrMissing) {
-            lastBodyBg = bg;
-            paintTOC(dark);
+        // 如果主题变化，或者属性丢失，则重绘
+        if (mode !== currentMode || (toc && toc.getAttribute('data-theme') !== mode)) {
+            paintTOC();
             colorizeTOC();
         }
     });
 }
 
-/* ==================== 主题自动触发 ==================== */
+/* ==================== 主题自动触发 (参考 GmeekButton) ==================== */
 function setupThemeAutoTrigger() {
-    // ① MutationObserver：监听 html 与 body 的所有属性变化
-    //    不限定 attributeFilter，因为 Gmeek 可能改 style / class / data-* 任意属性
+    // 核心：只监听 html[data-color-mode] 属性变化
     if (window.MutationObserver) {
         var observer = new MutationObserver(refreshTheme);
-        observer.observe(document.documentElement, { attributes: true });
-        if (document.body) {
-            observer.observe(document.body, { attributes: true });
-        }
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
     }
-
-    // ② 系统偏好变化
+    
+    // 系统偏好变化时也刷新
     if (window.matchMedia) {
         var media = window.matchMedia('(prefers-color-scheme: dark)');
         if (media.addEventListener) media.addEventListener('change', refreshTheme);
         else if (media.addListener) media.addListener(refreshTheme);
     }
-
-    // ③ 自定义事件
-    ['gmeek:themechange', 'themechange', 'color-mode-change', 'darkmode:toggle']
-        .forEach(function (name) {
-            document.addEventListener(name, refreshTheme);
-            window.addEventListener(name, refreshTheme);
-        });
-
-    // ④ 点击兜底
-    document.addEventListener('click', function (e) {
-        var t = e.target;
-        var hint = '';
-        while (t && t !== document) {
-            hint = (t.id || '') + ' ' + (t.className || '') + ' ' +
-                   (t.getAttribute && (t.getAttribute('aria-label') || '') || '');
-            if (/theme|dark|mode|color-scheme|switch/i.test(hint)) {
-                setTimeout(refreshTheme, 120);
-                setTimeout(refreshTheme, 400);
-                break;
-            }
-            t = t.parentNode;
-        }
-    }, true);
-
-    // ⑤ 低频轮询兜底（1s）
-    var pollTimer = setInterval(refreshTheme, 1000);
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden) clearInterval(pollTimer);
-        else pollTimer = setInterval(refreshTheme, 1000);
-    });
-
-    // ⑥ 给 .toc 单独加 MutationObserver，tocbot 改写 .toc.style 时补回 data-theme
-    setTimeout(function () {
-        var toc = document.querySelector('.toc');
-        if (toc && window.MutationObserver) {
-            var tocObserver = new MutationObserver(function () {
-                var dark = detectDark();
-                var want = dark ? 'dark' : 'light';
-                if (toc.getAttribute('data-theme') !== want) {
-                    toc.setAttribute('data-theme', want);
-                }
-            });
-            tocObserver.observe(toc, { attributes: true, attributeFilter: ['data-theme', 'style', 'class'] });
-        }
-    }, 500);
 }
 
 /* ==================== 样式注入 ==================== */
@@ -412,21 +310,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // 首次绘制
-        paintTOC(detectDark());
+        paintTOC();
         colorizeTOC();
-        lastBodyBg = readBodyBg();
+        currentMode = getMode();
 
         setTimeout(function () {
-            paintTOC(detectDark());
+            paintTOC();
             colorizeTOC();
-            lastBodyBg = readBodyBg();
             hideEmptyTOC();
             enhanceTOCBehavior();
         }, 300);
 
+        // 启动监听
         setupThemeAutoTrigger();
 
-        // 兜底刷新
+        // 兜底刷新（应对 tocbot 渲染完毕后可能修改属性）
         setTimeout(refreshTheme, 500);
         setTimeout(refreshTheme, 1200);
     });
@@ -451,6 +349,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 /**
  * TODO 随机展开3/4级目录，点击展开下一级，最深展示6级 目前未完成
- * 2026年11月6日22:03:55
+ * 2026年11月6日22:16:47
  * 
  */
