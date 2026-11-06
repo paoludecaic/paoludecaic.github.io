@@ -35,11 +35,25 @@ function nextFrame(fn) {
 }
 
 /* ==================== 主题：读取 html[data-color-mode] ==================== */
-// 与 GmeekButton-Top-Foot 保持一致：优先读 html[data-color-mode]，
-// 为 auto 或缺失时退化为系统偏好。
+// Gmeek 的 data-color-mode 初始为 "auto"，手动切换后变成 "dark"/"light"。
+// auto 或缺失时退化为系统偏好。
 function getMode() {
-    var mode = document.documentElement.getAttribute('data-color-mode');
+    var html = document.documentElement;
+    var mode = html.getAttribute('data-color-mode');
     if (mode === 'dark' || mode === 'light') return mode;
+
+    if (document.body) {
+        var bm = document.body.getAttribute('data-color-mode');
+        if (bm === 'dark' || bm === 'light') return bm;
+    }
+
+    if (html.classList.contains('dark')) return 'dark';
+    if (html.classList.contains('light')) return 'light';
+    if (document.body) {
+        if (document.body.classList.contains('dark')) return 'dark';
+        if (document.body.classList.contains('light')) return 'light';
+    }
+
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
@@ -140,46 +154,19 @@ function enhanceTOCBehavior() {
 }
 
 /* ==================== 主题绘制 ==================== */
-// 参考 GmeekButton-Top-Foot 的 paint()：
-// 只写 data-theme 属性 + CSS 变量，颜色全部由注入 CSS 的变量驱动。
-// 暗/亮两套背景、边框、阴影、滚动条颜色均通过 CSS 变量切换。
+// 关键修复：只写 data-theme 属性，颜色全部由注入 CSS 的
+// .toc[data-theme="dark"] / .toc[data-theme="light"] 选择器驱动。
+// 不再把 CSS 变量写进 .toc 的内联 style，避免被 tocbot 改写 .toc.style 时清掉。
 function paintTOC(mode) {
     var toc = document.querySelector('.toc');
     if (!toc) return;
-    toc.setAttribute('data-theme', mode);
-
-    var s = toc.style;
-    if (mode === 'dark') {
-        s.setProperty('--toc-bg', 'rgba(30, 41, 59, 0.92)');
-        s.setProperty('--toc-border', 'rgba(255, 255, 255, 0.08)');
-        s.setProperty('--toc-shadow-color', 'rgba(0, 0, 0, 0.5)');
-        s.setProperty('--toc-shadow-color-soft', 'rgba(0, 0, 0, 0.35)');
-        s.setProperty('--toc-inset', 'rgba(255, 255, 255, 0.06)');
-        s.setProperty('--toc-shadow-hover-color', 'rgba(0, 0, 0, 0.6)');
-        s.setProperty('--toc-shadow-hover-color-soft', 'rgba(0, 0, 0, 0.45)');
-        s.setProperty('--toc-inset-hover', 'rgba(255, 255, 255, 0.08)');
-        s.setProperty('--toc-scrollbar', '#475569');
-        s.setProperty('--toc-hover-bg', '#334155');
-        s.setProperty('--toc-active-bg', '#1e3a8a');
-        s.setProperty('--toc-active-color', '#e0e7ff');
-    } else {
-        s.setProperty('--toc-bg', '#ffffff');
-        s.setProperty('--toc-border', '#e5e7eb');
-        s.setProperty('--toc-shadow-color', 'rgba(0, 0, 0, 0.12)');
-        s.setProperty('--toc-shadow-color-soft', 'rgba(0, 0, 0, 0.08)');
-        s.setProperty('--toc-inset', 'rgba(255, 255, 255, 0.6)');
-        s.setProperty('--toc-shadow-hover-color', 'rgba(0, 0, 0, 0.16)');
-        s.setProperty('--toc-shadow-hover-color-soft', 'rgba(0, 0, 0, 0.1)');
-        s.setProperty('--toc-inset-hover', 'rgba(255, 255, 255, 0.8)');
-        s.setProperty('--toc-scrollbar', '#cbd5e1');
-        s.setProperty('--toc-hover-bg', '#f3f4f6');
-        s.setProperty('--toc-active-bg', '#eff6ff');
-        s.setProperty('--toc-active-color', '');
+    if (toc.getAttribute('data-theme') !== mode) {
+        toc.setAttribute('data-theme', mode);
     }
 }
 
 /* ==================== 主题刷新 ==================== */
-// 参考 GmeekButton-Top-Foot：rAF 节流，避免 MutationObserver 高频回调。
+// rAF 节流，避免 MutationObserver 高频回调。
 var themeTicking = false;
 function refreshTheme() {
     if (themeTicking) return;
@@ -193,13 +180,19 @@ function refreshTheme() {
 
 /* ==================== 主题自动触发 ==================== */
 function setupThemeAutoTrigger() {
-    // ① MutationObserver：监听 html[data-color-mode]（与按钮脚本一致）
+    // ① MutationObserver：同时监听 html 与 body 的 data-color-mode / class
     if (window.MutationObserver) {
         var observer = new MutationObserver(refreshTheme);
         observer.observe(document.documentElement, {
             attributes: true,
-            attributeFilter: ['data-color-mode']
+            attributeFilter: ['data-color-mode', 'class']
         });
+        if (document.body) {
+            observer.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['data-color-mode', 'class']
+            });
+        }
     }
 
     // ② 系统偏好变化（data-color-mode=auto 场景）
@@ -208,27 +201,44 @@ function setupThemeAutoTrigger() {
         if (media.addEventListener) media.addEventListener('change', refreshTheme);
         else if (media.addListener) media.addListener(refreshTheme);
     }
+
+    // ③ 自定义事件兜底
+    ['gmeek:themechange', 'themechange', 'color-mode-change', 'darkmode:toggle']
+        .forEach(function (name) {
+            document.addEventListener(name, refreshTheme);
+            window.addEventListener(name, refreshTheme);
+        });
+
+    // ④ 点击兜底（延时两次，覆盖异步切换）
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        var hint = '';
+        while (t && t !== document) {
+            hint = (t.id || '') + ' ' + (t.className || '') + ' ' +
+                   (t.getAttribute && (t.getAttribute('aria-label') || '') || '');
+            if (/theme|dark|mode|color-scheme|switch/i.test(hint)) {
+                setTimeout(refreshTheme, 120);
+                setTimeout(refreshTheme, 400);
+                break;
+            }
+            t = t.parentNode;
+        }
+    }, true);
+
+    // ⑤ 低频轮询兜底（1s，幂等无副作用）
+    var pollTimer = setInterval(refreshTheme, 1000);
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) clearInterval(pollTimer);
+        else pollTimer = setInterval(refreshTheme, 1000);
+    });
 }
 
 /* ==================== 样式注入 ==================== */
-// 参考 GmeekButton-Top-Foot：颜色全部由 CSS 变量驱动，
-// 背景/边框/阴影/滚动条在亮暗之间通过变量值切换。
+// 关键修复：两套 CSS 变量声明在 .toc[data-theme="..."] 选择器里，
+// 不在内联 style 上，tocbot 无论如何重写 .toc.style 都不会影响背景色切换。
 function injectTOCStyle() {
     var css = `
         .toc.toc {
-            --toc-bg: #ffffff;
-            --toc-border: #e5e7eb;
-            --toc-shadow-color: rgba(0, 0, 0, 0.12);
-            --toc-shadow-color-soft: rgba(0, 0, 0, 0.08);
-            --toc-inset: rgba(255, 255, 255, 0.6);
-            --toc-shadow-hover-color: rgba(0, 0, 0, 0.16);
-            --toc-shadow-hover-color-soft: rgba(0, 0, 0, 0.1);
-            --toc-inset-hover: rgba(255, 255, 255, 0.8);
-            --toc-scrollbar: #cbd5e1;
-            --toc-hover-bg: #f3f4f6;
-            --toc-active-bg: #eff6ff;
-            --toc-active-color: inherit;
-
             position: fixed;
             top: 130px;
             left: 50%;
@@ -239,24 +249,39 @@ function injectTOCStyle() {
             max-height: 60vh;
             overflow-y: auto;
             z-index: 100;
-            scrollbar-width: thin;
-            scrollbar-color: var(--toc-scrollbar) transparent;
-            background: var(--toc-bg) !important;
-            border: 1px solid var(--toc-border) !important;
-            box-shadow: 0 10px 25px -5px var(--toc-shadow-color),
-                        0 8px 10px -6px var(--toc-shadow-color-soft),
-                        0 0 0 1px var(--toc-inset) inset;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            scrollbar-width: thin;
+            background: #ffffff !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.12),
+                        0 8px 10px -6px rgba(0,0,0,0.08),
+                        0 0 0 1px rgba(255,255,255,0.6) inset;
+            scrollbar-color: #cbd5e1 transparent;
         }
         .toc.toc:hover {
-            box-shadow: 0 14px 30px -6px var(--toc-shadow-hover-color),
-                        0 10px 14px -8px var(--toc-shadow-hover-color-soft),
-                        0 0 0 1px var(--toc-inset-hover) inset;
+            box-shadow: 0 14px 30px -6px rgba(0,0,0,0.16),
+                        0 10px 14px -8px rgba(0,0,0,0.1),
+                        0 0 0 1px rgba(255,255,255,0.8) inset;
+        }
+
+        .toc.toc[data-theme="dark"] {
+            background: rgba(30, 41, 59, 0.92) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5),
+                        0 8px 10px -6px rgba(0,0,0,0.35),
+                        0 0 0 1px rgba(255,255,255,0.06) inset;
+            scrollbar-color: #475569 transparent;
+        }
+        .toc.toc[data-theme="dark"]:hover {
+            box-shadow: 0 14px 30px -6px rgba(0,0,0,0.6),
+                        0 10px 14px -8px rgba(0,0,0,0.45),
+                        0 0 0 1px rgba(255,255,255,0.08) inset;
         }
 
         .toc.toc::-webkit-scrollbar { width: 6px; background-color: transparent; }
         .toc.toc::-webkit-scrollbar-track { background-color: transparent; }
-        .toc.toc::-webkit-scrollbar-thumb { background-color: var(--toc-scrollbar); border-radius: 10px; }
+        .toc.toc::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .toc.toc[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
 
         .toc.toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
         .toc.toc .toc-list-item { margin: 2px 0; list-style: none; }
@@ -273,14 +298,20 @@ function injectTOCStyle() {
             word-break: break-word;
         }
         .toc.toc a.toc-link:hover {
-            background-color: var(--toc-hover-bg);
+            background-color: #f3f4f6;
             border-left-color: currentColor;
+        }
+        .toc.toc[data-theme="dark"] a.toc-link:hover {
+            background-color: #334155;
         }
         .toc.toc .is-active-link {
             font-weight: 600;
-            background-color: var(--toc-active-bg);
-            color: var(--toc-active-color);
+            background-color: #eff6ff;
             border-left-color: currentColor;
+        }
+        .toc.toc[data-theme="dark"] .is-active-link {
+            background-color: #1e3a8a;
+            color: #e0e7ff !important;
         }
 
         .toc.toc .is-collapsible {
@@ -366,6 +397,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 /**
  * TODO 随机展开3/4级目录，点击展开下一级，最深展示6级 目前未完成
- * 2026年11月6日20:56:10
+ * 2026年11月6日21:05:04
  * 
  */
