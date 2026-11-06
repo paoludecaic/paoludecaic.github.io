@@ -5,8 +5,7 @@
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  *
  * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js
- * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js'></script>" *
-
+ * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js'></script>"
 **/
 
 /* ==================== 通用工具 ==================== */
@@ -105,7 +104,6 @@ function hideEmptyTOC() {
     // [FIX-6] 二次校验：tocbot 可能延迟渲染，避免误隐藏
     if (!toc.querySelector('a.toc-link')) {
         if (!emptyTOCChecked) {
-            // 首次判断为空，稍后再确认一次
             emptyTOCChecked = true;
             setTimeout(function () {
                 if (!toc.querySelector('a.toc-link')) {
@@ -201,6 +199,99 @@ function refreshTheme(force) {
         currentMode = mode;
         paintTOC(mode);
         colorizeTOC();
+    });
+}
+
+/* ==================== 主题自动触发（五层监听 + 去抖） ==================== */
+function setupThemeAutoTrigger() {
+    var lastMode = getMode();
+    var debounceTimer = null;
+
+    // 统一入口：去抖后比对，模式变了才刷新
+    function trigger(reason) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function () {
+            var mode = getMode();
+            if (mode !== lastMode) {
+                lastMode = mode;
+                refreshTheme(true);
+            }
+        }, 30);
+    }
+
+    // ---------- ① 属性/class 变化（MutationObserver）----------
+    if (window.MutationObserver) {
+        var observer = new MutationObserver(function (mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+                var m = mutations[i];
+                if (m.type === 'attributes') {
+                    trigger('MutationObserver:' + m.attributeName);
+                    return;
+                }
+            }
+        });
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-color-mode', 'class', 'style']
+        });
+        // 同时监听 body，部分主题把 class 挂在 body 上
+        if (document.body) {
+            observer.observe(document.body, {
+                attributes: true,
+                attributeFilter: ['class', 'data-color-mode']
+            });
+        }
+    }
+
+    // ---------- ② 系统偏好变化（matchMedia）----------
+    if (window.matchMedia) {
+        var media = window.matchMedia('(prefers-color-scheme: dark)');
+        var mediaHandler = function () { trigger('matchMedia'); };
+        if (media.addEventListener) media.addEventListener('change', mediaHandler);
+        else if (media.addListener) media.addListener(mediaHandler);
+    }
+
+    // ---------- ③ 自定义事件（主题框架 dispatch）----------
+    ['gmeek:themechange', 'themechange', 'color-mode-change', 'darkmode:toggle']
+        .forEach(function (name) {
+            document.addEventListener(name, function () { trigger('event:' + name); });
+            window.addEventListener(name, function () { trigger('event:' + name); });
+        });
+
+    // ---------- ④ 点击拦截（兜底：切换按钮点击后延时检测）----------
+    document.addEventListener('click', function (e) {
+        var t = e.target;
+        var hint = '';
+        while (t && t !== document) {
+            hint = (t.id || '') + ' ' + (t.className || '') + ' ' +
+                   (t.getAttribute && (t.getAttribute('aria-label') || '') || '');
+            if (/theme|dark|mode|color-scheme|switch/i.test(hint)) {
+                setTimeout(function () { trigger('click-hint'); }, 120);
+                setTimeout(function () { trigger('click-hint-late'); }, 400);
+                break;
+            }
+            t = t.parentNode;
+        }
+    }, true);
+
+    // ---------- ⑤ 最后兜底：低频轮询（1s 一次，模式变了才刷新）----------
+    var pollTimer = setInterval(function () {
+        var mode = getMode();
+        if (mode !== lastMode) {
+            lastMode = mode;
+            refreshTheme(true);
+        }
+    }, 1000);
+    // 页面隐藏时停止轮询，节省资源
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            clearInterval(pollTimer);
+        } else {
+            pollTimer = setInterval(function () {
+                var mode = getMode();
+                if (mode !== lastMode) { lastMode = mode; refreshTheme(true); }
+            }, 1000);
+        }
     });
 }
 
@@ -339,27 +430,8 @@ document.addEventListener('DOMContentLoaded', function () {
             enhanceTOCBehavior();
         }, 300);
 
-        // [FIX-3] 同时监听 data-color-mode 与 class
-        if (window.MutationObserver) {
-            var observer = new MutationObserver(function () { refreshTheme(); });
-            observer.observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['data-color-mode', 'class']
-            });
-        }
-
-        // 系统偏好变化
-        if (window.matchMedia) {
-            var media = window.matchMedia('(prefers-color-scheme: dark)');
-            if (media.addEventListener) {
-                media.addEventListener('change', function () { refreshTheme(true); });
-            } else if (media.addListener) {
-                media.addListener(function () { refreshTheme(true); });
-            }
-        }
-
-        // [OPT-2] 兼容自定义主题切换事件
-        document.addEventListener('gmeek:themechange', function () { refreshTheme(true); });
+        // ✅ [AUTO-1] 主题切换自动触发（五层监听 + 去抖）
+        setupThemeAutoTrigger();
 
         // [OPT-3] 兜底刷新，覆盖 tocbot 异步渲染
         setTimeout(function () { refreshTheme(true); }, 500);
@@ -386,3 +458,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log("\n %c GmeekTocBot Plugins https://github.com/Meekdai/Gmeek \n", "padding:5px 0;background:#C333D0;color:#fff");
 });
+
+/* ==================== 对外 API（可选手动调用） ==================== */
+window.GmeekTOC = {
+    refresh: function () { refreshTheme(true); },
+    getMode: getMode,
+    colorize: colorizeTOC
+};
