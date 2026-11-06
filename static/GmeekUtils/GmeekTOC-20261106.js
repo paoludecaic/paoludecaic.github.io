@@ -1,6 +1,6 @@
 /**
  * GmeekTOC-20261106.js
- * GmeekTOC 文章目录工具 固定展开4级目录，点击4级展开5级，点击5级展开6级，点击6级无反馈
+ * GmeekTOC 文章目录工具 固定展开5级目录，隐藏6级目录，移除折叠逻辑
  * 20261106 版本号 2026年11月6日 发版的稳定版
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  *
@@ -97,125 +97,43 @@ function hideEmptyTOC() {
     if (!toc) return;
     if (!toc.querySelector('a.toc-link')) {
         setTimeout(function () {
-            if (!toc.querySelector('a.toc-link')) toc.style.display = 'none';
+            if (!toc.querySelector('a.toc-link')) toc.style.setProperty('display', 'none', 'important');
         }, 600);
     } else {
         toc.style.display = '';
     }
 }
 
-/* ==================== 逐级折叠核心 ==================== */
-function getDirectSubList(li) {
-    var children = li.children;
-    for (var i = 0; i < children.length; i++) {
-        if (children[i].classList.contains('toc-list')) {
-            return children[i];
-        }
-    }
-    return null;
-}
-
-function setSubListOpen(li, open) {
-    var sub = getDirectSubList(li);
-    if (!sub) return;
-
-    if (open) {
-        // 展开：强制覆盖 tocbot 的折叠样式
-        sub.style.setProperty('display', 'block', 'important');
-        sub.style.setProperty('max-height', 'none', 'important');
-        sub.style.setProperty('opacity', '1', 'important');
-        sub.classList.remove('is-collapsible', 'is-collapsed');
-        sub.classList.add('is-open');
-        li.dataset.subOpen = '1';
-    } else {
-        // 折叠：强制覆盖 tocbot
-        sub.style.setProperty('display', 'none', 'important');
-        sub.style.setProperty('max-height', '0', 'important');
-        sub.style.setProperty('opacity', '0', 'important');
-        sub.classList.remove('is-open');
-        li.dataset.subOpen = '0';
-    }
-}
-
-function getLevel(li) {
-    var raw = li.getAttribute('data-level');
-    var n = raw ? parseInt(raw, 10) : 1;
-    return isNaN(n) ? 1 : n;
-}
-
-// 初始化折叠：固定展开 4 级
-function initCollapseState() {
+/* ==================== 目录展开与隐藏控制 ==================== */
+// 强制展开 1-5 级，并隐藏第 6 级及以下的节点
+function processTOCLevels() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
+    // 1. 强制展开所有目录列表，防止 tocbot 的折叠样式生效
+    var allLists = toc.querySelectorAll('.toc-list');
+    allLists.forEach(function (list) {
+        list.style.setProperty('display', 'block', 'important');
+        list.style.setProperty('max-height', 'none', 'important');
+        list.style.setProperty('opacity', '1', 'important');
+        list.classList.remove('is-collapsible', 'is-collapsed');
+    });
+
+    // 2. 移除所有折叠按钮（如果有）
+    toc.querySelectorAll('.toc-collapse-button').forEach(function (btn) {
+        btn.style.display = 'none';
+    });
+
+    // 3. 隐藏第 6 级目录及以上的节点
     var allLis = toc.querySelectorAll('li.toc-list-item');
     allLis.forEach(function (li) {
-        var level = getLevel(li);
-        var sub = getDirectSubList(li);
-        if (!sub) return; // 没有子列表跳过
-
-        // 1/2/3 级展开，4级及以下折叠（4级折叠5级）
-        if (level >= 4) {
-            setSubListOpen(li, false);
+        var level = parseInt(li.getAttribute('data-level') || '1', 10);
+        if (level >= 6) {
+            li.style.setProperty('display', 'none', 'important');
         } else {
-            setSubListOpen(li, true);
+            li.style.setProperty('display', 'list-item', 'important');
         }
     });
-}
-
-// 点击事件
-function onTocClick(e) {
-    var link = e.target.closest('a.toc-link');
-    if (!link) return;
-
-    e.preventDefault();
-
-    var li = link.closest('li.toc-list-item');
-    if (!li) return;
-
-    var level = getLevel(li);
-    var sub = getDirectSubList(li);
-
-    // 跳转逻辑
-    var targetId = link.getAttribute('href');
-    if (targetId && targetId.startsWith('#')) {
-        var targetEl = document.getElementById(targetId.substring(1));
-        if (targetEl) {
-            var y = targetEl.getBoundingClientRect().top + window.pageYOffset - 20;
-            window.scrollTo({ top: y, behavior: 'smooth' });
-        }
-    }
-
-    // 6 级无反馈
-    if (level >= 6) return;
-    if (!sub) return;
-
-    // 切换子级展开状态
-    var wasOpen = li.dataset.subOpen === '1';
-    if (wasOpen) {
-        setSubListOpen(li, false);
-    } else {
-        setSubListOpen(li, true);
-        // 展开时，确保子级中4级及以下保持折叠
-        var childItems = sub.children;
-        for (var i = 0; i < childItems.length; i++) {
-            if (childItems[i].classList.contains('toc-list-item')) {
-                var childLevel = getLevel(childItems[i]);
-                if (childLevel >= 4) {
-                    setSubListOpen(childItems[i], false);
-                }
-            }
-        }
-    }
-}
-
-function enhanceTOCBehavior() {
-    var toc = document.querySelector('.toc');
-    if (!toc) return;
-
-    if (toc.dataset.clickEnhanced === 'true') return;
-    toc.dataset.clickEnhanced = 'true';
-    toc.addEventListener('click', onTocClick);
 }
 
 /* ==================== 主题绘制 ==================== */
@@ -307,7 +225,7 @@ function injectTOCStyle() {
             width: 220px;
             padding: 16px 16px 16px 20px;
             border-radius: 14px;
-            max-height: 60vh;
+            max-height: 70vh;
             overflow-y: auto;
             z-index: 100;
             scrollbar-width: thin;
@@ -381,25 +299,23 @@ document.addEventListener('DOMContentLoaded', function () {
             tocSelector: '.toc',
             contentSelector: '.markdown-body',
             headingSelector: 'h1, h2, h3, h4, h5, h6',
+            // 移除平滑滚动，交给浏览器默认锚点跳转
             scrollSmooth: false,
-            collapseDepth: 0 // 让 tocbot 全部渲染，靠我们自己强制折叠
+            // collapseDepth 设置为 6（大于或等于 6），代表让 tocbot 初始渲染全部，折叠和隐藏由我们自己的 processTOCLevels 覆盖
+            collapseDepth: 6
         });
 
-        // 初始折叠与 DOM 挂载
         var applyAll = function () {
             applyTheme();
             hideEmptyTOC();
-            initCollapseState();
-            enhanceTOCBehavior();
+            processTOCLevels();
         };
 
-        // 1. 延迟 50ms 执行
+        // 延迟执行以确保 tocbot 渲染完毕
         setTimeout(applyAll, 50);
-
-        // 2. 延迟 300ms 兜底执行
         setTimeout(applyAll, 300);
 
-        // 3. 用 MutationObserver 监控 tocbot 的修改，一旦它在 DOM 里加了 is-collapsible 类或改样式，立刻强制执行一次
+        // 用 MutationObserver 监控 tocbot 的修改，防止它异步给 6 级目录加上奇怪的类
         var toc = document.querySelector('.toc');
         if (toc && window.MutationObserver) {
             var mo = new MutationObserver(function (mutations) {
@@ -410,8 +326,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 });
                 if (needFix) {
-                    initCollapseState();
-                    mo.disconnect(); // 断开，防止无限循环
+                    processTOCLevels();
+                    mo.disconnect();
                     setTimeout(function () { mo.observe(toc, { attributes: true, subtree: true, attributeFilter: ['class'] }); }, 100);
                 }
             });
@@ -435,5 +351,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * 2026年11月7日00:07:41
+ * 2026年11月7日00:15:34
  */
