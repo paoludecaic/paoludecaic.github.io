@@ -497,7 +497,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * TODO 随机展开3/4级目录，点击展开下一级，最深展示6级 目前未完成
- * 2026年11月6日23:25:30
- * 
+ * 2026年11月6日23:38:22
  */
