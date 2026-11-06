@@ -8,7 +8,6 @@
  * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261106.js'></script>"
 **/
 
-
 /* ==================== 通用工具 ==================== */
 function loadResource(type, attributes, callback) {
     var element;
@@ -25,7 +24,6 @@ function loadResource(type, attributes, callback) {
         element.href = attributes.href;
     } else if (type === 'style') {
         element = document.createElement('style');
-        element.rel = 'stylesheet';
         element.appendChild(document.createTextNode(attributes.css));
     }
     document.head.appendChild(element);
@@ -43,7 +41,7 @@ function hsla(h, s, l, a) {
     return 'hsla(' + h + ', ' + s + '%, ' + l + '%, ' + a + ')';
 }
 
-/* ==================== 主题判定（与 GmeekButton 对齐） ==================== */
+/* ==================== 主题判定 ==================== */
 function getMode() {
     var mode = document.documentElement.getAttribute('data-color-mode');
     if (mode === 'dark' || mode === 'light') return mode;
@@ -63,7 +61,7 @@ function createTOC() {
     }
 }
 
-/* ==================== 目录链接随机彩色 ==================== */
+/* ==================== 字体随机彩色 ==================== */
 function colorizeTOC() {
     var isDark = (getMode() === 'dark');
     var lightL = isDark ? 68 : 42;
@@ -79,6 +77,7 @@ function colorizeTOC() {
         var baseColor = hsl(hue, 65, lightL);
         var hoverColor = hsl(hue, 75, hoverL);
 
+        // 强制覆盖字体颜色
         a.style.setProperty('color', baseColor, 'important');
         a.style.transition = 'color 0.25s, background-color 0.25s';
 
@@ -93,54 +92,42 @@ function colorizeTOC() {
 }
 
 /* ==================== 隐藏空目录 ==================== */
-var emptyTOCChecked = false;
 function hideEmptyTOC() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
     if (!toc.querySelector('a.toc-link')) {
-        if (!emptyTOCChecked) {
-            emptyTOCChecked = true;
-            setTimeout(function () {
-                if (!toc.querySelector('a.toc-link')) toc.style.display = 'none';
-            }, 600);
-        } else {
-            toc.style.display = 'none';
-        }
+        setTimeout(function () {
+            if (!toc.querySelector('a.toc-link')) toc.style.display = 'none';
+        }, 600);
     } else {
         toc.style.display = '';
     }
 }
 
 /* ==================== 逐级折叠核心 ==================== */
-/**
- * tocbot 的 DOM 结构（每个 li）:
- *   <li class="toc-list-item" data-level="N">
- *     <a class="toc-link"></a>
- *     <ol class="toc-list">          <-- 直接子列表 = N+1 级
- *       <li class="toc-list-item" data-level="N+1">...</li>
- *     </ol>
- *   </li>
- * 只控制"直接子列表"的显示，实现"点击 N 级 → 展开 N+1 级"。
- */
-
+// 获取当前 li 的直接子 ul/ol (兼容不支持 :scope 的旧环境)
 function getDirectSubList(li) {
-    return li.querySelector(':scope > .toc-list');
+    var children = li.children;
+    for (var i = 0; i < children.length; i++) {
+        if (children[i].classList.contains('toc-list')) {
+            return children[i];
+        }
+    }
+    return null;
 }
 
 function setSubListOpen(li, open) {
     var sub = getDirectSubList(li);
     if (!sub) return;
     if (open) {
-        sub.style.display = '';
-        sub.style.maxHeight = 'none';
-        sub.style.opacity = '1';
-        sub.classList.remove('is-collapsible');
+        sub.style.setProperty('display', 'block', 'important');
+        sub.style.setProperty('max-height', 'none', 'important');
+        sub.style.setProperty('opacity', '1', 'important');
+        sub.classList.remove('is-collapsible', 'is-collapsed');
         sub.classList.add('is-open');
         li.dataset.subOpen = '1';
     } else {
-        sub.style.display = 'none';
-        sub.style.maxHeight = '';
-        sub.style.opacity = '';
+        sub.style.setProperty('display', 'none', 'important');
         li.dataset.subOpen = '0';
     }
 }
@@ -151,13 +138,8 @@ function getLevel(li) {
     return isNaN(n) ? 1 : n;
 }
 
-/**
- * 初始化折叠状态（固定展开 4 级）：
- * - level >= 4 的 li，折叠其直接子列表（4级默认折叠5级）
- * - level < 4 的 li 全部展开（1/2/3级可见，4级本身可见）
- * - 叶子节点（无直接子列表）跳过 → 目录不足4级时全部展开
- */
-function initCollapseState(openDepth) {
+// 初始化折叠：固定展开 4 级
+function initCollapseState() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
@@ -165,8 +147,10 @@ function initCollapseState(openDepth) {
     allLis.forEach(function (li) {
         var level = getLevel(li);
         var sub = getDirectSubList(li);
-        if (!sub) return; // 叶子节点，无下一级
-        if (level >= openDepth) {
+        if (!sub) return; // 没有子列表跳过
+
+        // 1/2/3 级展开，4级及以下折叠（4级折叠5级）
+        if (level >= 4) {
             setSubListOpen(li, false);
         } else {
             setSubListOpen(li, true);
@@ -174,116 +158,100 @@ function initCollapseState(openDepth) {
     });
 }
 
-/**
- * 点击处理：
- * - 点击 level L 的链接（L < 6）→ 切换其直接子列表（L+1 级）显隐
- * - 展开时，子列表中每个 li 的"更下一级"若 childLevel >= openDepth 则保持折叠
- * - 点击 level 6 → 无反馈
- */
+// 点击事件
 function onTocClick(e) {
     var link = e.target.closest('a.toc-link');
     if (!link) return;
+    
+    // 阻止默认锚点跳转带来的页面抖动，稍后手动平滑滚动
+    e.preventDefault(); 
+    
     var li = link.closest('li.toc-list-item');
     if (!li) return;
 
     var level = getLevel(li);
-    if (level >= 6) return; // 6 级无反馈
-
     var sub = getDirectSubList(li);
-    if (!sub) return; // 没有下一级
 
+    // 跳转逻辑（无论有没有子级都要能跳转）
+    var targetId = link.getAttribute('href');
+    if (targetId && targetId.startsWith('#')) {
+        var targetEl = document.getElementById(targetId.substring(1));
+        if (targetEl) {
+            var y = targetEl.getBoundingClientRect().top + window.pageYOffset - 20;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+    }
+
+    // 6 级无反馈（不展开不折叠）
+    if (level >= 6) return; 
+    if (!sub) return; 
+
+    // 切换子级展开状态
     var wasOpen = li.dataset.subOpen === '1';
     if (wasOpen) {
         setSubListOpen(li, false);
-        return;
-    }
-
-    setSubListOpen(li, true);
-
-    var openDepth = window.__gmeekTocOpenDepth || 4;
-    var childItems = sub.querySelectorAll(':scope > li.toc-list-item');
-    childItems.forEach(function (childLi) {
-        var childLevel = getLevel(childLi);
-        var childSub = getDirectSubList(childLi);
-        if (!childSub) return;
-        if (childLevel >= openDepth) {
-            setSubListOpen(childLi, false);
-        } else {
-            setSubListOpen(childLi, true);
+    } else {
+        setSubListOpen(li, true);
+        // 展开时，确保子级中4级及以下保持折叠
+        var childItems = sub.children;
+        for (var i = 0; i < childItems.length; i++) {
+            if (childItems[i].classList.contains('toc-list-item')) {
+                var childLevel = getLevel(childItems[i]);
+                if (childLevel >= 4) {
+                    setSubListOpen(childItems[i], false);
+                }
+            }
         }
-    });
+    }
 }
 
-function enhanceTOCBehavior(openDepth) {
+function enhanceTOCBehavior() {
     var toc = document.querySelector('.toc');
     if (!toc || toc.dataset.enhanced === 'true') return;
     toc.dataset.enhanced = 'true';
-
-    window.__gmeekTocOpenDepth = openDepth;
-
-    toc.querySelectorAll('li[data-level="6"] .toc-collapse-button').forEach(function (btn) {
-        btn.style.display = 'none';
-    });
-
     toc.addEventListener('click', onTocClick);
 }
 
-/* ==================== 主题绘制与监听（与 GmeekButton 对齐） ==================== */
+/* ==================== 主题绘制（强制内联覆盖背景） ==================== */
 var currentMode = null;
 var themeTicking = false;
 
-/**
- * 用 GmeekButton-Top-Foot 的 paint() 同款逻辑给 .toc 上色：
- * - light: 白底渐变 + 深色描边 + 浅阴影
- * - dark : 深色渐变 + 亮色描边 + 深阴影
- * 阴影公式与按钮一致（多层 + 内高光），保留目录区域阴影效果。
- */
+// 直接给 .toc 元素写 style，无视一切 CSS 优先级
 function paintTOC(toc, mode) {
     if (!toc) return;
-    var hue = 220; // 与按钮默认色相同，保持中性蓝灰
+    var hue = 220; 
     var s = toc.style;
 
-    s.setProperty('--toc-hue', String(hue));
-
     if (mode === 'dark') {
-        s.setProperty('--toc-bg', 'linear-gradient(145deg, ' + hsl(hue, 24, 18) + ', ' + hsl(hue, 30, 11) + ')');
-        s.setProperty('--toc-border', hsla(hue, 60, 70, 0.28));
-        s.setProperty('--toc-glow', '0.5');
-        s.setProperty('--toc-glow-hover', '0.62');
-        s.setProperty('--toc-shadow-color', 'rgba(0, 0, 0, 0.5)');
-        s.setProperty('--toc-inset', 'rgba(255, 255, 255, 0.12)');
-        s.setProperty('--toc-scrollbar', '#475569');
+        s.setProperty('background', 'linear-gradient(145deg, ' + hsl(hue, 24, 18) + ', ' + hsl(hue, 30, 11) + ')', 'important');
+        s.setProperty('border', '1px solid ' + hsla(hue, 60, 70, 0.28), 'important');
+        s.setProperty('box-shadow', 
+            '0 10px 25px -5px hsla(' + hue + ', 70%, 45%, 0.5), ' +
+            '0 8px 10px -6px rgba(0, 0, 0, 0.5), ' +
+            '0 0 0 1px rgba(255, 255, 255, 0.12) inset', 'important');
+        s.setProperty('scrollbar-color', '#475569 transparent', 'important');
     } else {
-        s.setProperty('--toc-bg', 'linear-gradient(145deg, #ffffff, ' + hsl(hue, 45, 97) + ')');
-        s.setProperty('--toc-border', hsla(hue, 45, 55, 0.22));
-        s.setProperty('--toc-glow', '0.42');
-        s.setProperty('--toc-glow-hover', '0.55');
-        s.setProperty('--toc-shadow-color', 'rgba(15, 23, 42, 0.18)');
-        s.setProperty('--toc-inset', 'rgba(255, 255, 255, 0.9)');
-        s.setProperty('--toc-scrollbar', '#cbd5e1');
+        s.setProperty('background', 'linear-gradient(145deg, #ffffff, ' + hsl(hue, 45, 97) + ')', 'important');
+        s.setProperty('border', '1px solid ' + hsla(hue, 45, 55, 0.22), 'important');
+        s.setProperty('box-shadow', 
+            '0 10px 25px -5px hsla(' + hue + ', 70%, 45%, 0.42), ' +
+            '0 8px 10px -6px rgba(15, 23, 42, 0.18), ' +
+            '0 0 0 1px rgba(255, 255, 255, 0.9) inset', 'important');
+        s.setProperty('scrollbar-color', '#cbd5e1 transparent', 'important');
     }
 }
 
-/**
- * 统一主题应用：
- * - 同步 data-theme 到 .toc（CSS 选择器依赖）
- * - mode 变化时重绘背景/边框/阴影 + 重新给链接上随机彩色
- */
 function applyTheme() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
     var mode = getMode();
-    var changed = (mode !== currentMode);
-    currentMode = mode;
-
-    if (toc.getAttribute('data-theme') !== mode) {
-        toc.setAttribute('data-theme', mode);
-    }
-
-    // 每次都重绘背景变量，保证背景色始终跟随主题（即使 CSS 被外部覆盖也能兜底）
+    
+    // 无论变没变，都重新上色
     paintTOC(toc, mode);
 
-    if (changed) {
+    if (mode !== currentMode) {
+        currentMode = mode;
+        toc.setAttribute('data-theme', mode);
         colorizeTOC();
     }
 }
@@ -297,50 +265,32 @@ function refreshTheme() {
     });
 }
 
-/**
- * 幂等包裹 modeSwitch：避免时序问题或重复包裹。
- */
 function wrapModeSwitch() {
-    if (typeof window.modeSwitch !== 'function') return;
-    if (window.modeSwitch.__gmeekTocWrapped) return;
-
+    if (typeof window.modeSwitch !== 'function' || window.modeSwitch.__gmeekTocWrapped) return;
     var original = window.modeSwitch;
-    var wrapped = function () {
+    window.modeSwitch = function () {
         var ret = original.apply(this, arguments);
         setTimeout(refreshTheme, 10);
         setTimeout(refreshTheme, 100);
         return ret;
     };
-    wrapped.__gmeekTocWrapped = true;
-    window.modeSwitch = wrapped;
+    window.modeSwitch.__gmeekTocWrapped = true;
 }
 
 function setupThemeListener() {
     if (window.MutationObserver) {
         var observer = new MutationObserver(refreshTheme);
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-color-mode']
-        });
-        if (document.body) {
-            observer.observe(document.body, { attributes: true });
-        }
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
+        if (document.body) observer.observe(document.body, { attributes: true });
     }
-
     if (window.matchMedia) {
         var media = window.matchMedia('(prefers-color-scheme: dark)');
         if (media.addEventListener) media.addEventListener('change', refreshTheme);
         else if (media.addListener) media.addListener(refreshTheme);
     }
-
     wrapModeSwitch();
-    var tryWrap = setInterval(function () {
-        if (window.modeSwitch && !window.modeSwitch.__gmeekTocWrapped) {
-            wrapModeSwitch();
-        }
-    }, 500);
+    var tryWrap = setInterval(wrapModeSwitch, 500);
     setTimeout(function () { clearInterval(tryWrap); }, 10000);
-
     document.addEventListener('themechange', refreshTheme);
 }
 
@@ -359,30 +309,14 @@ function injectTOCStyle() {
             overflow-y: auto;
             z-index: 100;
             scrollbar-width: thin;
-
-            /* 背景/边框/阴影全部走变量，由 paintTOC() 按主题写入（与 GmeekButton 一致） */
-            background: var(--toc-bg, #ffffff) !important;
-            border: 1px solid var(--toc-border, #e5e7eb) !important;
-            box-shadow:
-                0 10px 25px -5px hsla(var(--toc-hue, 220), 70%, 45%, var(--toc-glow, 0.42)),
-                0 8px 10px -6px var(--toc-shadow-color, rgba(15,23,42,0.18)),
-                0 0 0 1px var(--toc-inset, rgba(255,255,255,0.6)) inset;
+            /* 去除 tocbot 自带的白色背景干扰 */
+            background: transparent !important; 
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-            scrollbar-color: var(--toc-scrollbar, #cbd5e1) transparent;
         }
-        .toc.toc:hover {
-            box-shadow:
-                0 14px 30px -6px hsla(var(--toc-hue, 220), 75%, 45%, var(--toc-glow-hover, 0.55)),
-                0 10px 14px -8px var(--toc-shadow-color, rgba(15,23,42,0.18)),
-                0 0 0 1px var(--toc-inset, rgba(255,255,255,0.8)) inset;
-        }
-
         .toc.toc::-webkit-scrollbar { width: 6px; background-color: transparent; }
         .toc.toc::-webkit-scrollbar-track { background-color: transparent; }
-        .toc.toc::-webkit-scrollbar-thumb {
-            background-color: var(--toc-scrollbar, #cbd5e1);
-            border-radius: 10px;
-        }
+        .toc.toc::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .toc.toc[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
 
         .toc.toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
         .toc.toc .toc-list-item { margin: 2px 0; list-style: none; }
@@ -414,18 +348,6 @@ function injectTOCStyle() {
             background-color: rgba(96, 165, 250, 0.18);
         }
 
-        /* 折叠过渡辅助（display 由 JS 控制，这里仅做辅助） */
-        .toc.toc .is-collapsible {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.3s ease, opacity 0.3s ease;
-        }
-        .toc.toc .is-collapsible.is-open {
-            max-height: 1000px;
-            opacity: 1;
-        }
-
         @media (max-width: 1249px) {
             .toc.toc {
                 position: static;
@@ -444,11 +366,6 @@ function injectTOCStyle() {
 document.addEventListener('DOMContentLoaded', function () {
     createTOC();
     injectTOCStyle();
-
-    // 固定展开 4 级（原随机 3/4 改为固定 4）
-    var openDepth = 4;
-
-    // 尽早开始监听主题（不依赖 tocbot 加载）
     setupThemeListener();
 
     loadResource('script', {
@@ -458,25 +375,20 @@ document.addEventListener('DOMContentLoaded', function () {
             tocSelector: '.toc',
             contentSelector: '.markdown-body',
             headingSelector: 'h1, h2, h3, h4, h5, h6',
-            scrollSmooth: true,
-            scrollSmoothOffset: -10,
-            headingsOffset: 10,
-            // 初始交给 tocbot 展开到 4 级；随后由 initCollapseState 接管精确控制
-            collapseDepth: openDepth
+            scrollSmooth: false, // 滚动逻辑由我们自己接管
+            collapseDepth: 0      // 故意设为0，全部渲染出来，由我们的 initCollapseState 接管
         });
 
+        // 使用双重延时确保 tocbot 将 DOM 彻底挂载完毕
         setTimeout(function () {
-            currentMode = null;
             applyTheme();
-
             hideEmptyTOC();
-
-            initCollapseState(openDepth);
-            enhanceTOCBehavior(openDepth);
-
-            setTimeout(refreshTheme, 200);
-            setTimeout(refreshTheme, 600);
-        }, 100);
+            initCollapseState();
+            enhanceTOCBehavior();
+            
+            // 再次兜底应用
+            setTimeout(refreshTheme, 300);
+        }, 150);
     });
 
     loadResource('link', {
@@ -484,6 +396,7 @@ document.addEventListener('DOMContentLoaded', function () {
         href: 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.css'
     });
 
+    // 补全 ID 供锚点跳转使用
     var headings = document.querySelectorAll('.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6');
     headings.forEach(function (heading) {
         if (!heading.id) heading.id = heading.textContent.trim().replace(/\s+/g, '-');
@@ -492,10 +405,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var footerPlaceholder = document.createElement('div');
     footerPlaceholder.style.height = window.innerHeight + 'px';
     document.body.appendChild(footerPlaceholder);
-
-    console.log("\n %c GmeekTocBot Plugins https://github.com/Meekdai/Gmeek \n", "padding:5px 0;background:#C333D0;color:#fff");
 });
 
 /**
- * 2026年11月6日23:38:22
+ * 2026年11月6日23:54:23
  */
