@@ -105,34 +105,29 @@ function hideEmptyTOC() {
 }
 
 /* ==================== 目录展开与隐藏控制 ==================== */
-// 强制展开 1-5 级，并隐藏第 6 级及以下的节点
+// 强制展开 1-5 级，隐藏 6 级节点及其父级列表
 function processTOCLevels() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
-    // 1. 强制展开所有目录列表，防止 tocbot 的折叠样式生效
-    var allLists = toc.querySelectorAll('.toc-list');
-    allLists.forEach(function (list) {
+    // 1. 强制展开所有 1-5 级目录列表，清除 tocbot 折叠痕迹
+    var lists = toc.querySelectorAll('ol.toc-list, ul.toc-list');
+    lists.forEach(function (list) {
         list.style.setProperty('display', 'block', 'important');
         list.style.setProperty('max-height', 'none', 'important');
         list.style.setProperty('opacity', '1', 'important');
         list.classList.remove('is-collapsible', 'is-collapsed');
     });
 
-    // 2. 移除所有折叠按钮（如果有）
+    // 2. 移除所有折叠按钮
     toc.querySelectorAll('.toc-collapse-button').forEach(function (btn) {
         btn.style.display = 'none';
     });
 
-    // 3. 隐藏第 6 级目录及以上的节点
-    var allLis = toc.querySelectorAll('li.toc-list-item');
-    allLis.forEach(function (li) {
-        var level = parseInt(li.getAttribute('data-level') || '1', 10);
-        if (level >= 6) {
-            li.style.setProperty('display', 'none', 'important');
-        } else {
-            li.style.setProperty('display', 'list-item', 'important');
-        }
+    // 3. 隐藏 6 级目录节点（写死内联样式，无视一切外部覆盖）
+    var level6Lis = toc.querySelectorAll('li[data-level="6"]');
+    level6Lis.forEach(function (li) {
+        li.style.setProperty('display', 'none', 'important');
     });
 }
 
@@ -225,6 +220,7 @@ function injectTOCStyle() {
             width: 220px;
             padding: 16px 16px 16px 20px;
             border-radius: 14px;
+            /* 目录区域高度改为 70% */
             max-height: 70vh;
             overflow-y: auto;
             z-index: 100;
@@ -240,6 +236,11 @@ function injectTOCStyle() {
         .toc.toc .toc-list { padding-left: 0; margin: 0; list-style: none; }
         .toc.toc .toc-list-item { margin: 2px 0; list-style: none; }
         .toc.toc .toc-list .toc-list { padding-left: 12px; }
+
+        /* 关键：CSS 层面直接封杀 6 级目录的渲染 */
+        .toc.toc li[data-level="6"] {
+            display: none !important;
+        }
 
         .toc.toc a.toc-link {
             display: block;
@@ -299,10 +300,9 @@ document.addEventListener('DOMContentLoaded', function () {
             tocSelector: '.toc',
             contentSelector: '.markdown-body',
             headingSelector: 'h1, h2, h3, h4, h5, h6',
-            // 移除平滑滚动，交给浏览器默认锚点跳转
             scrollSmooth: false,
-            // collapseDepth 设置为 6（大于或等于 6），代表让 tocbot 初始渲染全部，折叠和隐藏由我们自己的 processTOCLevels 覆盖
-            collapseDepth: 6
+            // 深度 6，让 tocbot 全部渲染出来（我们靠 CSS 和 JS 去砍）
+            collapseDepth: 6 
         });
 
         var applyAll = function () {
@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(applyAll, 50);
         setTimeout(applyAll, 300);
 
-        // 用 MutationObserver 监控 tocbot 的修改，防止它异步给 6 级目录加上奇怪的类
+        // 防止 tocbot 异步渲染后修改 DOM 导致 6 级重新出现
         var toc = document.querySelector('.toc');
         if (toc && window.MutationObserver) {
             var mo = new MutationObserver(function (mutations) {
@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 if (needFix) {
                     processTOCLevels();
-                    mo.disconnect();
+                    mo.disconnect(); 
                     setTimeout(function () { mo.observe(toc, { attributes: true, subtree: true, attributeFilter: ['class'] }); }, 100);
                 }
             });
@@ -351,5 +351,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * 2026年11月7日00:15:34
+ * 2026年11月7日00:26:11
  */
