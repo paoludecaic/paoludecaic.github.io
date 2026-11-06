@@ -35,12 +35,10 @@ function nextFrame(fn) {
     (window.requestAnimationFrame || function (cb) { return setTimeout(cb, 16); })(fn);
 }
 
-/* ==================== 主题判定 (参考 GmeekButton) ==================== */
-// 直接读取 html 的 data-color-mode，与官方主题切换器保持一致
+/* ==================== 主题判定 (完全对齐 GmeekButton) ==================== */
 function getMode() {
     var mode = document.documentElement.getAttribute('data-color-mode');
     if (mode === 'dark' || mode === 'light') return mode;
-    // 如果为 auto 或未设置，回退到系统偏好
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
@@ -59,10 +57,10 @@ function createTOC() {
 
 /* ==================== 目录链接随机彩色 ==================== */
 function colorizeTOC() {
-    var mode = getMode();
-    var dark = (mode === 'dark');
-    var lightL = dark ? 64 : 42;
-    var hoverL = dark ? 74 : 32;
+    var isDark = (getMode() === 'dark');
+    var lightL = isDark ? 64 : 42;
+    var hoverL = isDark ? 74 : 32;
+    
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
         var hue = a.dataset.hue !== undefined
@@ -73,14 +71,15 @@ function colorizeTOC() {
         var baseColor = 'hsl(' + hue + ', 65%, ' + lightL + '%)';
         var hoverColor = 'hsl(' + hue + ', 75%, ' + hoverL + '%)';
 
-        a.style.color = baseColor;
+        // 强制覆盖内联颜色
+        a.style.setProperty('color', baseColor, 'important');
         a.style.transition = 'color 0.25s, background-color 0.25s';
 
         if (a._onEnter) a.removeEventListener('mouseenter', a._onEnter);
         if (a._onLeave) a.removeEventListener('mouseleave', a._onLeave);
 
-        a._onEnter = function () { a.style.color = hoverColor; };
-        a._onLeave = function () { a.style.color = baseColor; };
+        a._onEnter = function () { a.style.setProperty('color', hoverColor, 'important'); };
+        a._onLeave = function () { a.style.setProperty('color', baseColor, 'important'); };
         a.addEventListener('mouseenter', a._onEnter);
         a.addEventListener('mouseleave', a._onLeave);
     });
@@ -139,7 +138,7 @@ function enhanceTOCBehavior() {
     });
 }
 
-/* ==================== 主题绘制 ==================== */
+/* ==================== 主题绘制与监听 ==================== */
 var currentMode = null;
 var themeTicking = false;
 
@@ -147,10 +146,14 @@ function paintTOC() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
     var mode = getMode();
-    // 无论是否相同都重写，防止被 tocbot 冲掉
+    
+    // 强制设置属性，这决定了 CSS 中的 [data-theme="dark"] 是否生效
     toc.setAttribute('data-theme', mode);
+    
+    // 只在模式真正变化时才重新渲染文字颜色
     if (currentMode !== mode) {
         currentMode = mode;
+        colorizeTOC();
     }
 }
 
@@ -159,25 +162,20 @@ function refreshTheme() {
     themeTicking = true;
     nextFrame(function () {
         themeTicking = false;
-        var mode = getMode();
-        var toc = document.querySelector('.toc');
-        // 如果主题变化，或者属性丢失，则重绘
-        if (mode !== currentMode || (toc && toc.getAttribute('data-theme') !== mode)) {
-            paintTOC();
-            colorizeTOC();
-        }
+        paintTOC();
     });
 }
 
-/* ==================== 主题自动触发 (参考 GmeekButton) ==================== */
-function setupThemeAutoTrigger() {
-    // 核心：只监听 html[data-color-mode] 属性变化
+function setupThemeListener() {
+    // 核心：只精准监听 html 标签上的 data-color-mode 属性
     if (window.MutationObserver) {
         var observer = new MutationObserver(refreshTheme);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
+        observer.observe(document.documentElement, { 
+            attributes: true, 
+            attributeFilter: ['data-color-mode'] 
+        });
     }
-    
-    // 系统偏好变化时也刷新
+    // 系统偏好变化兜底
     if (window.matchMedia) {
         var media = window.matchMedia('(prefers-color-scheme: dark)');
         if (media.addEventListener) media.addEventListener('change', refreshTheme);
@@ -201,6 +199,8 @@ function injectTOCStyle() {
             z-index: 100;
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
             scrollbar-width: thin;
+            
+            /* 默认亮色主题 */
             background: #ffffff !important;
             border: 1px solid #e5e7eb !important;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.12),
@@ -214,6 +214,7 @@ function injectTOCStyle() {
                         0 0 0 1px rgba(255,255,255,0.8) inset;
         }
 
+        /* 暗色主题 */
         .toc.toc[data-theme="dark"] {
             background: rgba(30, 41, 59, 0.92) !important;
             border: 1px solid rgba(255,255,255,0.08) !important;
@@ -309,22 +310,19 @@ document.addEventListener('DOMContentLoaded', function () {
             collapseDepth: randomDepth
         });
 
-        // 首次绘制
+        // 初始渲染
+        currentMode = null; // 置空，强制 colorizeTOC 执行一次
         paintTOC();
-        colorizeTOC();
-        currentMode = getMode();
-
+        
         setTimeout(function () {
             paintTOC();
-            colorizeTOC();
             hideEmptyTOC();
             enhanceTOCBehavior();
         }, 300);
 
-        // 启动监听
-        setupThemeAutoTrigger();
+        setupThemeListener();
 
-        // 兜底刷新（应对 tocbot 渲染完毕后可能修改属性）
+        // 兜底刷新（防止 tocbot 异步渲染后丢失属性）
         setTimeout(refreshTheme, 500);
         setTimeout(refreshTheme, 1200);
     });
@@ -346,9 +344,8 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log("\n %c GmeekTocBot Plugins https://github.com/Meekdai/Gmeek \n", "padding:5px 0;background:#C333D0;color:#fff");
 });
 
-
 /**
  * TODO 随机展开3/4级目录，点击展开下一级，最深展示6级 目前未完成
- * 2026年11月6日22:16:47
+ * 2026年11月6日22:28:31
  * 
  */
