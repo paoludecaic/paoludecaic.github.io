@@ -11,7 +11,7 @@
 (function () {
     'use strict';
 
-    var STACK_ID = 'GmeekTOC-Prod';
+    var STACK_ID = 'GmeekTOC';
     var TOCBOT_JS = 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.min.js';
     var TOCBOT_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/tocbot/4.27.4/tocbot.css';
 
