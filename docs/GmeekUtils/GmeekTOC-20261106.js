@@ -42,6 +42,10 @@ function hsla(h, s, l, a) {
     return 'hsla(' + h + ', ' + s + '%, ' + l + '%, ' + a + ')';
 }
 
+function randomHue() {
+    return Math.floor(Math.random() * 360);
+}
+
 /* ==================== 主题判定 ==================== */
 function getMode() {
     var mode = document.documentElement.getAttribute('data-color-mode');
@@ -62,25 +66,34 @@ function createTOC() {
     }
 }
 
-/* ==================== 字体随机彩色（1104 版实现） ==================== */
-function colorizeTOC() {
+/* ==================== 字体随机彩色（与 GmeekButton 同款彩色 + 字体阴影） ==================== */
+function colorizeTOC(force) {
     var dark = getMode() === 'dark';
-    var light = dark ? 64 : 42;
-    var lightHover = dark ? 74 : 32;
+    // 与按钮 paint() 同款明度：dark 68 / hover 78，light 42 / hover 32
+    var light = dark ? 68 : 42;
+    var lightHover = dark ? 78 : 32;
+    var shadowAlpha = dark ? 0.45 : 0.28;
+    var shadowHoverAlpha = dark ? 0.75 : 0.55;
+
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
-        if (a.dataset.colored) return;
+        if (a.dataset.colored && !force) return;
         a.dataset.colored = 'true';
 
-        var hue = Math.floor(Math.random() * 360);
+        var hue = randomHue();
+        a.style.setProperty('--toc-hue', String(hue));
         a.style.color = hsl(hue, 65, light);
-        a.style.transition = 'color 0.25s, background-color 0.25s';
-        a.addEventListener('mouseenter', function () {
+        a.style.textShadow = '0 1px 2px ' + hsla(hue, 70, dark ? 8 : 30, shadowAlpha);
+        a.style.transition = 'color 0.25s, background-color 0.25s, text-shadow 0.25s';
+
+        a.onmouseenter = function () {
             a.style.color = hsl(hue, 75, lightHover);
-        });
-        a.addEventListener('mouseleave', function () {
+            a.style.textShadow = '0 0 10px ' + hsla(hue, 90, dark ? 60 : 50, shadowHoverAlpha);
+        };
+        a.onmouseleave = function () {
             a.style.color = hsl(hue, 65, light);
-        });
+            a.style.textShadow = '0 1px 2px ' + hsla(hue, 70, dark ? 8 : 30, shadowAlpha);
+        };
     });
 }
 
@@ -200,7 +213,8 @@ function applyTheme() {
     if (mode !== currentMode) {
         currentMode = mode;
         toc.setAttribute('data-theme', mode);
-        colorizeTOC();
+        // 主题切换时强制重刷彩色与阴影，避免暗/亮色残留
+        colorizeTOC(true);
     }
 }
 
@@ -288,10 +302,15 @@ function injectTOCStyle() {
             border-radius: 6px;
             border-left: 2px solid transparent;
             word-break: break-word;
+            /* 字体阴影兜底：JS 内联样式优先，这里提供默认值 */
+            text-shadow: 0 1px 2px rgba(15, 23, 42, 0.28);
         }
         .toc.toc a.toc-link:hover {
             background-color: rgba(148, 163, 184, 0.18);
             border-left-color: currentColor;
+        }
+        .toc.toc[data-theme="dark"] a.toc-link {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
         }
         .toc.toc[data-theme="dark"] a.toc-link:hover {
             background-color: rgba(148, 163, 184, 0.16);
@@ -379,6 +398,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 toRemove.forEach(function (li) {
                     if (li.parentNode) li.parentNode.removeChild(li);
                 });
+
+                // 新增链接补色（含字体阴影）
+                colorizeTOC();
             });
             mo.observe(toc, { childList: true, subtree: true });
         }
@@ -400,5 +422,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * 2026年11月7日01:10:38
+ * 2026年11月7日13:45:42
  */
