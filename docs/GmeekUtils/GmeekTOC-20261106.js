@@ -8,6 +8,7 @@
  * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261107.js'></script>"
 **/
 
+
 /* ==================== 通用工具 ==================== */
 function loadResource(type, attributes, callback) {
     var element;
@@ -252,7 +253,7 @@ function injectTOCStyle() {
             width: 220px;
             padding: 16px 16px 16px 20px;
             border-radius: 14px;
-            max-height: 70vh;
+            max-height: 60vh;
             overflow-y: auto;
             z-index: 100;
             scrollbar-width: thin;
