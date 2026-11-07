@@ -2,8 +2,10 @@
  * GmeekTOC-20261107-Prod.js
  * GmeekTOC 文章目录工具（生产级重构版）
  * 强制展开 1-5 级目录，物理移除 6 级目录，隐藏空目录
- * 2026年11月7日17:27:05
- * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
+ * 
+ * 更新：
+ * 1. 调整了 transform 偏移量，使右侧目录离正文更远。
+ * 2. 修改了 box-shadow，将阴影颜色调整为暗色系（纯黑/深灰）。
  */
 
 (function () {
@@ -210,7 +212,6 @@
     }
 
     function pollWrapModeSwitch() {
-        // 仅在等待 modeSwitch 出现的短暂窗口内使用；一旦包装成功立即清除定时器
         if (wrapModeSwitch()) {
             if (state.modeWrapTimer) {
                 clearInterval(state.modeWrapTimer);
@@ -240,7 +241,6 @@
         }
         document.addEventListener('themechange', refreshTheme);
 
-        // modeSwitch 包装：先用一次同步尝试，失败再短暂轮询（有截止时间，必然清理）
         if (!wrapModeSwitch()) {
             state.modeWrapDeadline = Date.now() + 10000;
             state.modeWrapTimer = setInterval(pollWrapModeSwitch, 500);
@@ -305,7 +305,7 @@
             position: fixed;
             top: 130px;
             left: 50%;
-            transform: translateX(50%) translateX(300px);
+            transform: translateX(50%) translateX(360px);
             width: 220px;
             padding: 16px 16px 16px 20px;
             border-radius: 14px;
@@ -321,22 +321,24 @@
         #${STACK_ID}::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         #${STACK_ID}[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
 
-        /* 属性驱动主题 */
+        /* 属性驱动主题 - 已将阴影修改为暗色系 */
         #${STACK_ID}[data-theme="light"] {
             background: linear-gradient(145deg, #ffffff, ${hsl(220, 45, 97)});
             border: 1px solid ${hsla(220, 45, 55, 0.22)};
+            /* 阴影改为纯黑中性色，更贴合常见的悬浮 UI 效果 */
             box-shadow:
-                0 10px 25px -5px ${hsla(220, 70, 45, 0.42)},
-                0 8px 10px -6px rgba(15, 23, 42, 0.18),
+                0 10px 25px -5px rgba(0, 0, 0, 0.18),
+                0 8px 10px -6px rgba(0, 0, 0, 0.1),
                 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
             scrollbar-color: #cbd5e1 transparent;
         }
         #${STACK_ID}[data-theme="dark"] {
             background: linear-gradient(145deg, ${hsl(220, 24, 18)}, ${hsl(220, 30, 11)});
             border: 1px solid ${hsla(220, 60, 70, 0.28)};
+            /* 暗色模式阴影加深，增强悬浮感 */
             box-shadow:
-                0 10px 25px -5px ${hsla(220, 70, 45, 0.5)},
-                0 8px 10px -6px rgba(0, 0, 0, 0.5),
+                0 10px 25px -5px rgba(0, 0, 0, 0.6),
+                0 8px 10px -6px rgba(0, 0, 0, 0.4),
                 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
             scrollbar-color: #475569 transparent;
         }
@@ -348,7 +350,7 @@
         #${STACK_ID} .toc-list-item { margin: 2px 0; list-style: none; }
         #${STACK_ID} .toc-list .toc-list { padding-left: 12px; }
 
-        /* 6 级目录兜底隐藏（JS 已物理移除，这里再兜一层） */
+        /* 6 级目录兜底隐藏 */
         #${STACK_ID} li[data-level="6"] { display: none; }
         #${STACK_ID} ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li {
             display: none;
@@ -403,7 +405,7 @@
             position: fixed;
             top: 130px;
             left: 50%;
-            transform: translateX(50%) translateX(300px);
+            transform: translateX(50%) translateX(360px);
             width: 220px;
             padding: 14px 16px;
             border-radius: 14px;
@@ -414,13 +416,14 @@
         #${STACK_ID}-error[data-theme="light"] {
             background: #fff;
             border: 1px solid ${hsla(220, 45, 55, 0.22)};
-            box-shadow: 0 10px 25px -5px ${hsla(220, 70, 45, 0.42)};
+            /* 错误卡片同步使用暗色阴影 */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18);
             color: #b91c1c;
         }
         #${STACK_ID}-error[data-theme="dark"] {
             background: ${hsl(220, 24, 18)};
             border: 1px solid ${hsla(220, 60, 70, 0.28)};
-            box-shadow: 0 10px 25px -5px ${hsla(220, 70, 45, 0.5)};
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
             color: #fca5a5;
         }
         #${STACK_ID}-error .toc-error-title { font-weight: 700; margin-bottom: 6px; }
@@ -509,7 +512,6 @@
         setupThemeListener();
         fillHeadingIds();
 
-        // 底部占位（保留原逻辑，避免页面底部空白不足）
         if (!document.getElementById(STACK_ID + '-footer')) {
             var footerPlaceholder = document.createElement('div');
             footerPlaceholder.id = STACK_ID + '-footer';
