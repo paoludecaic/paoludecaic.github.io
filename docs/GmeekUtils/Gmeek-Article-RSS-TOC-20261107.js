@@ -61,32 +61,14 @@
         return Math.floor(Math.random() * 360);
     }
 
-    function updatePosition() {
-        var stack = document.getElementById(STACK_ID);
-        if (!stack) return;
-
-        var content = document.querySelector('.markdown-body') || document.getElementById('content') || document.querySelector('article');
-
-        if (content) {
-            var rect = content.getBoundingClientRect();
-            var leftSpace = rect.left;
-            if (leftSpace > 280) {
-                stack.style.right = (window.innerWidth - leftSpace + 24) + 'px';
-                stack.style.display = 'flex';
-            } else {
-                stack.style.display = 'none';
-            }
-        } else {
-            stack.style.right = '24px';
-        }
-    }
-
     function injectNavStyle() {
         var css = `
         #Gmeek-Article-RSS-TOC {
             position: fixed;
             top: 130px;
-            right: 24px;
+            left: calc(50% - 450px - 260px - 30px);
+            right: auto;
+            
             width: 260px;
             max-height: 60vh;
             display: flex;
@@ -252,7 +234,7 @@
             background-color: rgba(96, 165, 250, 0.18);
         }
 
-        @media (max-width: 1249px) {
+        @media (max-width: 1350px) {
             #Gmeek-Article-RSS-TOC {
                 display: none !important;
             }
@@ -347,7 +329,6 @@
             if (activeItem) {
                 activeItem.scrollIntoView({ block: 'center' });
             }
-            updatePosition();
         }, 100);
     }
 
@@ -358,7 +339,6 @@
         stack.setAttribute('data-theme', getMode());
         stack.innerHTML = `<div class="gan-current" style="color:red;">RSS 加载失败<br><span style="font-size:12px">${msg}</span></div>`;
         document.body.appendChild(stack);
-        updatePosition();
     }
 
     function syncTheme() {
@@ -376,7 +356,6 @@
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
         }
 
-        window.addEventListener('resize', updatePosition);
     }
 
     (function init() {
