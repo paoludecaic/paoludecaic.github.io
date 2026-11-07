@@ -2,10 +2,9 @@
  * Gmeek-Article-RSS-TOC-20261107.js
  * Article-RSS-TOC 基于 RSS 的文章导航目录 包含：上一篇、下一篇、当前文章、文章列表
  * 20261107 版本号 2026年11月7日 发版的稳定版
- * 2026年11月7日16:41:10
+ * 2026年11月7日18:02:43
  * 
- * 引用地址 https://blog.caicai.asia/GmeekUtils/Gmeek-Article-RSS-TOC-20261107.js
- * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/Gmeek-Article-RSS-TOC-20261107.js'></script>"
+ * 更新：修改阴影效果，阴影颜色统一为暗色系。
 **/
 
 (function () {
@@ -107,25 +106,25 @@
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
         }
 
-        /* 亮色主题背景与边框（与 TOC 保持完全一致） */
+        /* 亮色主题背景与边框 - 阴影改为暗色系纯黑 */
         #Gmeek-Article-RSS-TOC[data-theme="light"] {
             background: linear-gradient(145deg, #ffffff, ${hsl(220, 45, 97)}) !important;
             border: 1px solid ${hsla(220, 45, 55, 0.22)} !important;
             box-shadow:
-                0 10px 25px -5px ${hsla(220, 70, 45, 0.42)},
-                0 8px 10px -6px rgba(15, 23, 42, 0.18),
+                0 10px 25px -5px rgba(0, 0, 0, 0.18),
+                0 8px 10px -6px rgba(0, 0, 0, 0.1),
                 0 0 0 1px rgba(255, 255, 255, 0.9) inset !important;
             scrollbar-color: #cbd5e1 transparent !important;
             color: #334155;
         }
 
-        /* 暗色主题背景与边框（与 TOC 保持完全一致） */
+        /* 暗色主题背景与边框 - 阴影加深，增强悬浮感 */
         #Gmeek-Article-RSS-TOC[data-theme="dark"] {
             background: linear-gradient(145deg, ${hsl(220, 24, 18)}, ${hsl(220, 30, 11)}) !important;
             border: 1px solid ${hsla(220, 60, 70, 0.28)} !important;
             box-shadow:
-                0 10px 25px -5px ${hsla(220, 70, 45, 0.5)},
-                0 8px 10px -6px rgba(0, 0, 0, 0.5),
+                0 10px 25px -5px rgba(0, 0, 0, 0.6),
+                0 8px 10px -6px rgba(0, 0, 0, 0.4),
                 0 0 0 1px rgba(255, 255, 255, 0.12) inset !important;
             scrollbar-color: #475569 transparent !important;
             color: #cbd5e1;
