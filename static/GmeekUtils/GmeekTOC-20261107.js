@@ -1,12 +1,12 @@
 /**
- * GmeekTOC-20261107-Prod.js
- * GmeekTOC 文章目录工具（生产级重构版）
- * 强制展开 1-5 级目录，物理移除 6 级目录，隐藏空目录
+ * GmeekTOC-20261107.js
+ * GmeekTOC 文章目录工具 强制展开 1-5 级目录，物理移除 6 级目录，隐藏空目录
+ * 20261107 版本号 2026年11月7日 发版的稳定版
+ * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
  * 
- * 更新：
- * 1. 调整了 transform 偏移量，使右侧目录离正文更远。
- * 2. 修改了 box-shadow，将阴影颜色调整为暗色系（纯黑/深灰）。
- */
+ * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261107.js
+**/
+
 
 (function () {
     'use strict';
@@ -25,7 +25,6 @@
         currentMode: null
     };
 
-    /* ==================== 通用工具 ==================== */
     function loadResource(type, attributes, callback) {
         var element;
         if (type === 'script') {
@@ -64,19 +63,16 @@
         return Math.floor(Math.random() * 360);
     }
 
-    /* ==================== 主题判定 ==================== */
     function getMode() {
         var mode = document.documentElement.getAttribute('data-color-mode');
         if (mode === 'dark' || mode === 'light') return mode;
         return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
 
-    /* ==================== 单例守卫 ==================== */
     function isMounted() {
         return state.mounted || !!document.getElementById(STACK_ID);
     }
 
-    /* ==================== 目录容器 ==================== */
     function createTOC() {
         var contentContainer = document.getElementById('content');
         if (!contentContainer) return null;
@@ -96,7 +92,6 @@
         return document.getElementById(STACK_ID) || document.querySelector('.toc');
     }
 
-    /* ==================== 字体随机彩色注入（只赋色相变量，渲染交给 CSS） ==================== */
     function colorizeTOC() {
         var toc = getTOC();
         if (!toc) return;
@@ -107,7 +102,6 @@
         });
     }
 
-    /* ==================== 隐藏空目录 ==================== */
     function hideEmptyTOC() {
         var toc = getTOC();
         if (!toc) return;
@@ -121,7 +115,6 @@
         }
     }
 
-    /* ==================== 按 li 嵌套深度物理移除第 6 级 ==================== */
     function removeLevel6ByLiDepth() {
         var toc = getTOC();
         if (!toc) return;
@@ -145,7 +138,6 @@
         });
     }
 
-    /* ==================== 目录展开控制 ==================== */
     function processTOCLevels() {
         var toc = getTOC();
         if (!toc) return;
@@ -180,7 +172,6 @@
         });
     }
 
-    /* ==================== 主题：属性驱动（纯 CSS 渲染） ==================== */
     function applyTheme() {
         var toc = getTOC();
         if (!toc) return;
@@ -198,7 +189,6 @@
         });
     }
 
-    /* ==================== modeSwitch 包装：事件驱动替代轮询 ==================== */
     function wrapModeSwitch() {
         if (typeof window.modeSwitch !== 'function' || window.modeSwitch.__gmeekTocWrapped) return false;
         var original = window.modeSwitch;
@@ -247,7 +237,6 @@
         }
     }
 
-    /* ==================== DOM 守护：tocbot 重建 DOM 后重新清理 ==================== */
     function setupDOMGuard(toc) {
         if (!toc || !window.MutationObserver) return;
         var mo = new MutationObserver(function (mutations) {
@@ -277,7 +266,6 @@
         mo.observe(toc, { childList: true, subtree: true });
     }
 
-    /* ==================== 错误 UI 降级 ==================== */
     function renderError(msg) {
         var existing = document.getElementById(STACK_ID + '-error');
         if (existing) existing.remove();
@@ -298,7 +286,6 @@
         }
     }
 
-    /* ==================== 样式注入（属性驱动，纯 CSS） ==================== */
     function injectTOCStyle() {
         var css = `
         #${STACK_ID} {
@@ -321,11 +308,9 @@
         #${STACK_ID}::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         #${STACK_ID}[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
 
-        /* 属性驱动主题 - 已将阴影修改为暗色系 */
         #${STACK_ID}[data-theme="light"] {
             background: linear-gradient(145deg, #ffffff, ${hsl(220, 45, 97)});
             border: 1px solid ${hsla(220, 45, 55, 0.22)};
-            /* 阴影改为纯黑中性色，更贴合常见的悬浮 UI 效果 */
             box-shadow:
                 0 10px 25px -5px rgba(0, 0, 0, 0.18),
                 0 8px 10px -6px rgba(0, 0, 0, 0.1),
@@ -335,7 +320,6 @@
         #${STACK_ID}[data-theme="dark"] {
             background: linear-gradient(145deg, ${hsl(220, 24, 18)}, ${hsl(220, 30, 11)});
             border: 1px solid ${hsla(220, 60, 70, 0.28)};
-            /* 暗色模式阴影加深，增强悬浮感 */
             box-shadow:
                 0 10px 25px -5px rgba(0, 0, 0, 0.6),
                 0 8px 10px -6px rgba(0, 0, 0, 0.4),
@@ -343,20 +327,17 @@
             scrollbar-color: #475569 transparent;
         }
 
-        /* 空目录隐藏 */
         #${STACK_ID}[data-empty="true"] { display: none; }
 
         #${STACK_ID} .toc-list { padding-left: 0; margin: 0; list-style: none; }
         #${STACK_ID} .toc-list-item { margin: 2px 0; list-style: none; }
         #${STACK_ID} .toc-list .toc-list { padding-left: 12px; }
 
-        /* 6 级目录兜底隐藏 */
         #${STACK_ID} li[data-level="6"] { display: none; }
         #${STACK_ID} ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li {
             display: none;
         }
 
-        /* 彩色与字体阴影 */
         #${STACK_ID} a.toc-link {
             display: block;
             padding: 4px 8px;
@@ -387,7 +368,6 @@
             text-shadow: 0 0 10px hsla(var(--toc-hue), 90%, 60%, 0.75);
         }
 
-        /* 覆盖 tocbot 自带 is-active-link */
         #${STACK_ID} .is-active-link {
             font-weight: 600;
             background-color: rgba(59, 130, 246, 0.12);
@@ -397,10 +377,8 @@
             background-color: rgba(96, 165, 250, 0.18);
         }
 
-        /* 禁止 tocbot 自身过渡动画 */
         #${STACK_ID} .is-collapsible { transition: none; }
 
-        /* 错误 UI */
         #${STACK_ID}-error {
             position: fixed;
             top: 130px;
@@ -416,7 +394,6 @@
         #${STACK_ID}-error[data-theme="light"] {
             background: #fff;
             border: 1px solid ${hsla(220, 45, 55, 0.22)};
-            /* 错误卡片同步使用暗色阴影 */
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.18);
             color: #b91c1c;
         }
@@ -444,7 +421,6 @@
         loadResource('style', { css: css });
     }
 
-    /* ==================== tocbot 初始化 ==================== */
     function initTocbot(toc) {
         loadResource('link', { rel: 'stylesheet', href: TOCBOT_CSS });
         loadResource('script', {
@@ -488,7 +464,6 @@
         });
     }
 
-    /* ==================== 标题 id 补全 ==================== */
     function fillHeadingIds() {
         var headings = document.querySelectorAll(
             '.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6'
@@ -498,7 +473,6 @@
         });
     }
 
-    /* ==================== 初始化 ==================== */
     function boot() {
         if (isMounted()) return;
 

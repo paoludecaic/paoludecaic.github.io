@@ -1,11 +1,13 @@
 /**
  * Gmeek-Article-RSS-TOC-20261107.js
- * Article-RSS-TOC 基于 RSS 的文章导航目录 包含：上一篇、下一篇、当前文章、文章列表
+ * Article-RSS-TOC 基于 RSS 的文章导航目录 
+ *      包含：上一篇、下一篇、当前文章、文章列表
  * 20261107 版本号 2026年11月7日 发版的稳定版
- * 2026年11月7日18:02:43
  * 
- * 更新：修改阴影效果，阴影颜色统一为暗色系。
+ * 
+ * 引用地址 https://blog.caicai.asia/GmeekUtils/Gmeek-Article-RSS-TOC-20261107.js
 **/
+
 
 (function () {
     'use strict';
@@ -13,7 +15,6 @@
     var STACK_ID = 'Gmeek-Article-RSS-TOC';
     var RSS_URL = window.location.origin + '/rss.xml';
 
-    // ==================== 通用工具 ====================
     function loadResource(type, attributes) {
         var element;
         if (type === 'script') {
@@ -60,7 +61,6 @@
         return Math.floor(Math.random() * 360);
     }
 
-    // ==================== 动态位置计算 ====================
     function updatePosition() {
         var stack = document.getElementById(STACK_ID);
         if (!stack) return;
@@ -81,13 +81,12 @@
         }
     }
 
-    // ==================== 样式注入 ====================
     function injectNavStyle() {
         var css = `
         #Gmeek-Article-RSS-TOC {
             position: fixed;
             top: 130px;
-            right: 24px; /* 默认值，会被 JS 动态覆盖 */
+            right: 24px;
             width: 260px;
             max-height: 60vh;
             display: flex;
@@ -96,17 +95,12 @@
             z-index: 100;
             overflow: hidden;
             scrollbar-width: thin;
-            
-            /* 字体渲染基础 */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             font-size: 0.85rem;
             --base-hue: 220;
-
-            /* 平滑过渡 */
             transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
         }
 
-        /* 亮色主题背景与边框 - 阴影改为暗色系纯黑 */
         #Gmeek-Article-RSS-TOC[data-theme="light"] {
             background: linear-gradient(145deg, #ffffff, ${hsl(220, 45, 97)}) !important;
             border: 1px solid ${hsla(220, 45, 55, 0.22)} !important;
@@ -118,7 +112,6 @@
             color: #334155;
         }
 
-        /* 暗色主题背景与边框 - 阴影加深，增强悬浮感 */
         #Gmeek-Article-RSS-TOC[data-theme="dark"] {
             background: linear-gradient(145deg, ${hsl(220, 24, 18)}, ${hsl(220, 30, 11)}) !important;
             border: 1px solid ${hsla(220, 60, 70, 0.28)} !important;
@@ -130,13 +123,11 @@
             color: #cbd5e1;
         }
 
-        /* 滚轴 */
         #Gmeek-Article-RSS-TOC::-webkit-scrollbar { width: 6px; background-color: transparent; }
         #Gmeek-Article-RSS-TOC::-webkit-scrollbar-track { background-color: transparent; }
         #Gmeek-Article-RSS-TOC::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         #Gmeek-Article-RSS-TOC[data-theme="dark"]::-webkit-scrollbar-thumb { background-color: #475569; }
 
-        /* 当前文章标题 (最上方) */
         .gan-current {
             padding: 14px 12px;
             text-align: center;
@@ -159,7 +150,6 @@
             text-shadow: 0 1px 2px ${hsla(220, 70, 8, 0.45)};
         }
 
-        /* 头部：上一篇 / 下一篇 (标题下方) */
         .gan-header {
             display: flex;
             border-bottom: 1px solid ${hsla(220, 45, 55, 0.15)};
@@ -181,8 +171,6 @@
             align-items: center;
             justify-content: center;
             line-height: 1.2;
-            
-            /* 继承色彩变量与过渡 */
             color: hsl(var(--toc-hue), 65%, 42%) !important;
             text-shadow: 0 1px 2px hsla(var(--toc-hue), 70%, 30%, 0.28) !important;
             transition: color 0.25s, background-color 0.25s, text-shadow 0.25s !important;
@@ -218,7 +206,6 @@
             line-height: 1.2;
         }
 
-        /* 文章列表容器 */
         .gan-list {
             flex: 1;
             overflow-y: auto;
@@ -226,7 +213,6 @@
             scrollbar-width: thin;
         }
 
-        /* 列表项 (文字居中，带彩色与阴影) */
         .gan-item {
             display: block;
             padding: 4px 16px;
@@ -236,8 +222,6 @@
             overflow: hidden;
             text-overflow: ellipsis;
             font-size: 0.85rem;
-            
-            /* 基础颜色与字体阴影（由 JS 生成色相） */
             color: hsl(var(--toc-hue), 65%, 42%) !important;
             text-shadow: 0 1px 2px hsla(var(--toc-hue), 70%, 30%, 0.28) !important;
             transition: color 0.25s, background-color 0.25s, text-shadow 0.25s !important;
@@ -257,7 +241,6 @@
             text-shadow: 0 0 10px hsla(var(--toc-hue), 90%, 60%, 0.75) !important;
         }
         
-        /* 当前高亮项（统一参照 TOC 的高亮） */
         .gan-item.active {
             background-color: rgba(59, 130, 246, 0.12);
             border-left: 3px solid currentColor;
@@ -269,7 +252,6 @@
             background-color: rgba(96, 165, 250, 0.18);
         }
 
-        /* 窄屏自适应 */
         @media (max-width: 1249px) {
             #Gmeek-Article-RSS-TOC {
                 display: none !important;
@@ -279,7 +261,6 @@
         loadResource('style', { css: css });
     }
 
-    // ==================== 解析 RSS 并渲染 ====================
     function fetchAndRenderRSS() {
         fetch(RSS_URL)
             .then(res => {
@@ -312,7 +293,6 @@
             });
     }
 
-    // ==================== 渲染 UI ====================
     function renderNav(articles) {
         if (document.getElementById(STACK_ID)) return;
 
@@ -320,7 +300,6 @@
         stack.id = STACK_ID;
         stack.setAttribute('data-theme', getMode());
 
-        // 识别当前文章
         var currentUrl = window.location.origin + window.location.pathname;
         var normalizedCurrentUrl = currentUrl.replace(/\/index\.html$/, '/');
 
@@ -334,20 +313,17 @@
             var currentArticle = articles[currentIndex];
             currentTitle = currentArticle.title;
 
-            // 上一篇
             if (currentIndex < articles.length - 1) {
                 var prevArticle = articles[currentIndex + 1];
                 prevHtml = `<a class="gan-btn" href="${prevArticle.link}" title="${escapeHTML(prevArticle.title)}" style="--toc-hue: ${randomHue()};">上一篇<br>${escapeHTML(prevArticle.title.substring(0, 6))}...</a>`;
             }
 
-            // 下一篇
             if (currentIndex > 0) {
                 var nextArticle = articles[currentIndex - 1];
                 nextHtml = `<a class="gan-btn" href="${nextArticle.link}" title="${escapeHTML(nextArticle.title)}" style="--toc-hue: ${randomHue()};">下一篇<br>${escapeHTML(nextArticle.title.substring(0, 6))}...</a>`;
             }
         }
 
-        // 构建 DOM
         var currentHtml = `<div class="gan-current" title="${escapeHTML(currentTitle)}">${escapeHTML(currentTitle)}</div>`;
 
         var headerHtml = '';
@@ -358,7 +334,6 @@
         var listHtml = '<div class="gan-list">';
         articles.forEach(function (article, index) {
             var isActive = (index === currentIndex) ? ' active' : '';
-            // 为每个列表项注入随机色相变量
             var hue = randomHue();
             listHtml += `<a class="gan-item${isActive}" href="${article.link}" title="${escapeHTML(article.title)}" style="--toc-hue: ${hue};">${escapeHTML(article.title)}</a>`;
         });
@@ -367,7 +342,6 @@
         stack.innerHTML = currentHtml + headerHtml + listHtml;
         document.body.appendChild(stack);
 
-        // 自动居中
         setTimeout(() => {
             var activeItem = stack.querySelector('.gan-item.active');
             if (activeItem) {
@@ -387,7 +361,6 @@
         updatePosition();
     }
 
-    // ==================== 主题与窗口同步 ====================
     function syncTheme() {
         var stack = document.getElementById(STACK_ID);
         if (!stack) return;
@@ -406,7 +379,6 @@
         window.addEventListener('resize', updatePosition);
     }
 
-    // ==================== 初始化 ====================
     (function init() {
         function boot() {
             injectNavStyle();

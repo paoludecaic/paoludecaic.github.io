@@ -1,14 +1,17 @@
 /**
- * GmeekButton-Top-Foot.20261107-row.js
+ * GmeekButton-Top-Foot-row-20261107.js
  * GmeekButton-Top-Foot 跳转到文章头部与尾部
+ * row 行排列  横版排列（有列排列 https://blog.caicai.asia/GmeekUtils/GmeekButton-Top-Foot-column-20261107.js）
+ * 20261107 版本号 2026年11月7日 发版的稳定版
  * 
+ * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekButton-Top-Foot-row-20261107.js
+**/
 
- */
 
 (function () {
     'use strict';
 
-    var STACK_ID = 'GmeekButton-Top-Foot';
+    var STACK_ID = 'GmeekButton-Top-Foot-row';
     var TOP_ID = 'gmeek-top-btn';
     var FOOT_ID = 'gmeek-foot-btn';
     var IDLE_CLASS = 'gmeek-fab--idle';
@@ -22,7 +25,6 @@
     var edgeTicking = false;
     var themeTicking = false;
 
-    /* ==================== 通用工具 ==================== */
     function loadResource(type, attributes) {
         var element;
         if (type === 'script') {
@@ -80,7 +82,6 @@
         return [first, second];
     }
 
-    /* ==================== 主题：读取 html[data-color-mode] ==================== */
     function getMode() {
         var mode = document.documentElement.getAttribute('data-color-mode');
         if (mode === 'dark' || mode === 'light') return mode;
@@ -98,7 +99,6 @@
             s.setProperty('--fab-border', hsla(hue, 60, 70, 0.28));
             s.setProperty('--fab-glow', '0.45');
             s.setProperty('--fab-glow-hover', '0.6');
-            // 改为暗色系阴影
             s.setProperty('--fab-shadow-color', 'rgba(0, 0, 0, 0.6)');
             s.setProperty('--fab-inset', 'rgba(255, 255, 255, 0.12)');
         } else {
@@ -107,13 +107,11 @@
             s.setProperty('--fab-border', hsla(hue, 45, 55, 0.22));
             s.setProperty('--fab-glow', '0.35');
             s.setProperty('--fab-glow-hover', '0.45');
-            // 改为暗色系阴影
             s.setProperty('--fab-shadow-color', 'rgba(0, 0, 0, 0.18)');
             s.setProperty('--fab-inset', 'rgba(255, 255, 255, 0.9)');
         }
     }
 
-    /* ==================== 滚动定位 ==================== */
     function smoothScrollTo(top) {
         top = Math.round(top);
         if ('scrollBehavior' in document.documentElement.style) {
@@ -141,7 +139,6 @@
         return max;
     }
 
-    /* ==================== 按钮构建 ==================== */
     function ripple(btn, event) {
         var rect = btn.getBoundingClientRect();
         var size = Math.max(rect.width, rect.height);
@@ -182,7 +179,6 @@
         return btn;
     }
 
-    /* ==================== 边缘状态 ==================== */
     function updateEdgeState() {
         if (!fabRefs.top || !fabRefs.foot) return;
         var offset = window.pageYOffset || document.documentElement.scrollTop || 0;
@@ -199,7 +195,6 @@
         });
     }
 
-    /* ==================== 主题刷新 ==================== */
     function applyTheme() {
         var mode = getMode();
         var changed = mode !== currentMode;
@@ -221,7 +216,6 @@
         });
     }
 
-    /* ==================== 样式注入（统一暗色阴影） ==================== */
     function injectFabStyle() {
         var css = `
         #gmeek-fab-stack {
@@ -271,7 +265,7 @@
             -webkit-backdrop-filter: blur(10px) saturate(160%);
             backdrop-filter: blur(10px) saturate(160%);
             box-shadow:
-                0 8px 20px -6px var(--fab-shadow-color), /* 使用暗色阴影 */
+                0 8px 20px -6px var(--fab-shadow-color),
                 0 2px 6px -2px var(--fab-shadow-color),
                 inset 0 1px 0 var(--fab-inset);
             transition:
@@ -304,7 +298,7 @@
             transform: translateY(-3px) scale(1.05);
             border-color: hsla(var(--fab-hue), 70%, 55%, 0.55);
             box-shadow:
-                0 14px 28px -8px var(--fab-shadow-color), /* 使用暗色阴影 */
+                0 14px 28px -8px var(--fab-shadow-color),
                 0 4px 10px -4px var(--fab-shadow-color),
                 0 0 0 4px hsla(var(--fab-hue), 85%, 60%, 0.14),
                 inset 0 1px 0 var(--fab-inset);
@@ -374,9 +368,7 @@
         loadResource('style', { css: css });
     }
 
-    /* ==================== 初始化 ==================== */
     function boot() {
-        // 单例守卫：防止脚本被多次引用导致出现多组按钮
         if (document.getElementById(STACK_ID)) return;
 
         var stack = document.createElement('div');
@@ -411,12 +403,10 @@
         window.addEventListener('resize', requestEdgeUpdate);
         window.addEventListener('load', requestEdgeUpdate);
 
-        // 监听 html[data-color-mode] 变化
         if (window.MutationObserver) {
             var observer = new MutationObserver(refreshTheme);
             observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
         }
-        // 系统偏好变化
         if (window.matchMedia) {
             var media = window.matchMedia('(prefers-color-scheme: dark)');
             if (media.addEventListener) media.addEventListener('change', refreshTheme);
