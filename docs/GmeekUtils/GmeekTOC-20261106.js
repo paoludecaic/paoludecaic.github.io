@@ -3,11 +3,9 @@
  * GmeekTOC 文章目录工具 强制展开 1-5 级目录，物理移除 6 级目录，隐藏空目录
  * 20261107 版本号 2026年11月7日 发版的稳定版
  * 基于原始脚本修改 https://blog.meekdai.com/Gmeek/plugins/GmeekTocBot.js
- *
- * 引用地址 https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261107.js
- * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/GmeekTOC-20261107.js'></script>"
+ * 
+ * 修复目录字色问题，采用纯 CSS 变量渲染（参考 GmeekButton 逻辑），加入字体阴影。
 **/
-
 
 /* ==================== 通用工具 ==================== */
 function loadResource(type, attributes, callback) {
@@ -66,34 +64,14 @@ function createTOC() {
     }
 }
 
-/* ==================== 字体随机彩色（与 GmeekButton 同款彩色 + 字体阴影） ==================== */
-function colorizeTOC(force) {
-    var dark = getMode() === 'dark';
-    // 与按钮 paint() 同款明度：dark 68 / hover 78，light 42 / hover 32
-    var light = dark ? 68 : 42;
-    var lightHover = dark ? 78 : 32;
-    var shadowAlpha = dark ? 0.45 : 0.28;
-    var shadowHoverAlpha = dark ? 0.75 : 0.55;
-
+/* ==================== 字体随机彩色注入（只赋色相变量，渲染交给 CSS） ==================== */
+function colorizeTOC() {
     var links = document.querySelectorAll('.toc a.toc-link');
     links.forEach(function (a) {
-        if (a.dataset.colored && !force) return;
-        a.dataset.colored = 'true';
-
-        var hue = randomHue();
-        a.style.setProperty('--toc-hue', String(hue));
-        a.style.color = hsl(hue, 65, light);
-        a.style.textShadow = '0 1px 2px ' + hsla(hue, 70, dark ? 8 : 30, shadowAlpha);
-        a.style.transition = 'color 0.25s, background-color 0.25s, text-shadow 0.25s';
-
-        a.onmouseenter = function () {
-            a.style.color = hsl(hue, 75, lightHover);
-            a.style.textShadow = '0 0 10px ' + hsla(hue, 90, dark ? 60 : 50, shadowHoverAlpha);
-        };
-        a.onmouseleave = function () {
-            a.style.color = hsl(hue, 65, light);
-            a.style.textShadow = '0 1px 2px ' + hsla(hue, 70, dark ? 8 : 30, shadowAlpha);
-        };
+        // 如果没有色相变量，则随机分配一个
+        if (!a.style.getPropertyValue('--toc-hue')) {
+            a.style.setProperty('--toc-hue', String(randomHue()));
+        }
     });
 }
 
@@ -115,7 +93,6 @@ function removeLevel6ByLiDepth() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
-    // 先收集，再删除，避免边遍历边删导致 NodeList 失效
     var toRemove = [];
     toc.querySelectorAll('li').forEach(function (li) {
         var depth = 0, p = li;
@@ -130,18 +107,16 @@ function removeLevel6ByLiDepth() {
         if (li.parentNode) li.parentNode.removeChild(li);
     });
 
-    // 清理因删除而变空的 ol
     toc.querySelectorAll('ol.toc-list').forEach(function (ol) {
         if (ol.querySelectorAll('li').length === 0) ol.remove();
     });
 }
 
-/* ==================== 目录展开控制：1-5 级强制展开，6 级物理移除 ==================== */
+/* ==================== 目录展开控制 ==================== */
 function processTOCLevels() {
     var toc = document.querySelector('.toc');
     if (!toc) return;
 
-    // 1. 强制展开所有目录列表，清除 tocbot 折叠痕迹（1-5 级全部展开）
     var lists = toc.querySelectorAll('ol.toc-list, ul.toc-list');
     lists.forEach(function (list) {
         list.style.setProperty('display', 'block', 'important');
@@ -150,27 +125,22 @@ function processTOCLevels() {
         list.classList.remove('is-collapsible', 'is-collapsed');
     });
 
-    // 2. 隐藏所有折叠按钮
     toc.querySelectorAll('.toc-collapse-button').forEach(function (btn) {
         btn.style.display = 'none';
     });
 
-    // 3. 方案 B：按 li 深度删 6 级（兼容 data-level 缺失的情况）
     removeLevel6ByLiDepth();
 
-    // 4. 若 tocbot 生成了 data-level=6（不同版本行为不同），也一并删掉
     toc.querySelectorAll('li[data-level="6"]').forEach(function (li) {
         if (li.parentNode) li.parentNode.removeChild(li);
     });
 
-    // 5. 清理空子列表（二次保险）
     toc.querySelectorAll('li').forEach(function (li) {
         li.querySelectorAll('ol.toc-list').forEach(function (sub) {
             if (sub.querySelectorAll('li').length === 0) sub.remove();
         });
     });
 
-    // 6. 5 级目录保持可见、不可折叠
     toc.querySelectorAll('li[data-level="5"]').forEach(function (li) {
         li.classList.remove('is-collapsible', 'is-collapsed');
         li.style.setProperty('max-height', 'none', 'important');
@@ -213,8 +183,6 @@ function applyTheme() {
     if (mode !== currentMode) {
         currentMode = mode;
         toc.setAttribute('data-theme', mode);
-        // 主题切换时强制重刷彩色与阴影，避免暗/亮色残留
-        colorizeTOC(true);
     }
 }
 
@@ -256,7 +224,7 @@ function setupThemeListener() {
     document.addEventListener('themechange', refreshTheme);
 }
 
-/* ==================== 样式注入 ==================== */
+/* ==================== 样式注入（核心逻辑改为 CSS 渲染） ==================== */
 function injectTOCStyle() {
     var css = `
         .toc.toc {
@@ -284,15 +252,14 @@ function injectTOCStyle() {
         .toc.toc .toc-list .toc-list { padding-left: 12px; }
 
         /* 方案 C 第一道：data-level=6 兜底 */
-        .toc.toc li[data-level="6"] {
-            display: none !important;
-        }
+        .toc.toc li[data-level="6"] { display: none !important; }
 
-        /* 方案 C 第二道：按 li 嵌套深度隐藏第 6 层（不依赖 data-level） */
+        /* 方案 C 第二道：按 li 嵌套深度隐藏第 6 层 */
         .toc.toc ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li > ol.toc-list > li {
             display: none !important;
         }
 
+        /* ====== 彩色与字体阴影（参考 GmeekButton 同款效果） ====== */
         .toc.toc a.toc-link {
             display: block;
             padding: 4px 8px;
@@ -302,19 +269,33 @@ function injectTOCStyle() {
             border-radius: 6px;
             border-left: 2px solid transparent;
             word-break: break-word;
-            /* 字体阴影兜底：JS 内联样式优先，这里提供默认值 */
-            text-shadow: 0 1px 2px rgba(15, 23, 42, 0.28);
+            
+            /* 基于 JS 注入的色相变量计算颜色 */
+            --toc-hue: 220;
+            color: hsl(var(--toc-hue), 65%, 42%) !important;
+            text-shadow: 0 1px 2px hsla(var(--toc-hue), 70%, 30%, 0.28) !important;
+            transition: color 0.25s, background-color 0.25s, text-shadow 0.25s !important;
         }
+
         .toc.toc a.toc-link:hover {
             background-color: rgba(148, 163, 184, 0.18);
             border-left-color: currentColor;
+            color: hsl(var(--toc-hue), 75%, 32%) !important;
+            text-shadow: 0 0 10px hsla(var(--toc-hue), 90%, 50%, 0.55) !important;
         }
+
+        /* 暗色主题适配 */
         .toc.toc[data-theme="dark"] a.toc-link {
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+            color: hsl(var(--toc-hue), 65%, 68%) !important;
+            text-shadow: 0 1px 2px hsla(var(--toc-hue), 70%, 8%, 0.45) !important;
         }
         .toc.toc[data-theme="dark"] a.toc-link:hover {
             background-color: rgba(148, 163, 184, 0.16);
+            color: hsl(var(--toc-hue), 75%, 78%) !important;
+            text-shadow: 0 0 10px hsla(var(--toc-hue), 90%, 60%, 0.75) !important;
         }
+
+        /* 覆盖 tocbot 自带的 is-active-link */
         .toc.toc .is-active-link {
             font-weight: 600;
             background-color: rgba(59, 130, 246, 0.12);
@@ -325,9 +306,7 @@ function injectTOCStyle() {
         }
 
         /* 禁止 tocbot 自身的 max-height 过渡动画 */
-        .toc .is-collapsible {
-            transition: none !important;
-        }
+        .toc .is-collapsible { transition: none !important; }
 
         @media (max-width: 1249px) {
             .toc.toc {
@@ -355,7 +334,6 @@ document.addEventListener('DOMContentLoaded', function () {
         tocbot.init({
             tocSelector: '.toc',
             contentSelector: '.markdown-body',
-            // 方案 A：从源头不生成 h6，tocbot 不会为 6 级标题创建任何 li
             headingSelector: 'h1, h2, h3, h4, h5',
             scrollSmooth: false,
             collapseDepth: 6
@@ -364,16 +342,16 @@ document.addEventListener('DOMContentLoaded', function () {
         var applyAll = function () {
             applyTheme();
             hideEmptyTOC();
-            processTOCLevels();   // 含方案 B：按 li 深度删 6 级（兜底）
+            processTOCLevels();
+            colorizeTOC(); // 注入颜色变量
         };
 
         // 延迟执行以确保 tocbot 渲染完毕
         setTimeout(applyAll, 50);
         setTimeout(applyAll, 300);
-        setTimeout(applyAll, 800); // 网络慢渲染晚的保险层
+        setTimeout(applyAll, 800);
 
-        // 持续守护：tocbot 后续若重建 DOM，再次清理 6 级
-        // 注意：observer 内只做轻量删除，不整体重跑 processTOCLevels，避免死循环
+        // 持续守护：tocbot 后续若重建 DOM
         var toc = document.querySelector('.toc');
         if (toc && window.MutationObserver) {
             var mo = new MutationObserver(function (mutations) {
@@ -382,7 +360,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 if (!hasNew) return;
 
-                // 轻量清理：data-level=6 + 按 li 深度=6
                 toc.querySelectorAll('li[data-level="6"]').forEach(function (li) {
                     if (li.parentNode) li.parentNode.removeChild(li);
                 });
@@ -399,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (li.parentNode) li.parentNode.removeChild(li);
                 });
 
-                // 新增链接补色（含字体阴影）
+                // 给新增链接补上色相变量
                 colorizeTOC();
             });
             mo.observe(toc, { childList: true, subtree: true });
@@ -422,5 +399,5 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /**
- * 2026年11月7日13:45:42
+ * 2026-11-7 14:33:53
  */
