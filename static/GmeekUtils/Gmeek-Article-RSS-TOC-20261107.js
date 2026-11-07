@@ -7,48 +7,51 @@
  * 引用方法 "script":"<script src='https://blog.caicai.asia/GmeekUtils/Gmeek-Article-RSS-TOC-20261107.js'></script>"
 **/
 
+(function () {
+    'use strict';
 
-var STACK_ID = 'Gmeek-Article-RSS-TOC';
-var RSS_URL = window.location.origin + '/rss.xml';
+    var STACK_ID = 'Gmeek-Article-RSS-TOC';
+    // 自动获取当前站点域名，拼接 /rss.xml，便于他人引用
+    var RSS_URL = window.location.origin + '/rss.xml';
 
-// ==================== 通用工具 ====================
-function loadResource(type, attributes) {
-    var element;
-    if (type === 'script') {
-        element = document.createElement('script');
-        element.src = attributes.src;
-    } else if (type === 'link') {
-        element = document.createElement('link');
-        element.rel = attributes.rel;
-        element.href = attributes.href;
-    } else if (type === 'style') {
-        element = document.createElement('style');
-        element.appendChild(document.createTextNode(attributes.css));
+    // ==================== 通用工具 ====================
+    function loadResource(type, attributes) {
+        var element;
+        if (type === 'script') {
+            element = document.createElement('script');
+            element.src = attributes.src;
+        } else if (type === 'link') {
+            element = document.createElement('link');
+            element.rel = attributes.rel;
+            element.href = attributes.href;
+        } else if (type === 'style') {
+            element = document.createElement('style');
+            element.appendChild(document.createTextNode(attributes.css));
+        }
+        document.head.appendChild(element);
     }
-    document.head.appendChild(element);
-}
 
-function getMode() {
-    var mode = document.documentElement.getAttribute('data-color-mode');
-    if (mode === 'dark' || mode === 'light') return mode;
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
+    function getMode() {
+        var mode = document.documentElement.getAttribute('data-color-mode');
+        if (mode === 'dark' || mode === 'light') return mode;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
 
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g,
-        tag => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;'
-        }[tag] || tag)
-    );
-}
+    function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g,
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    }
 
-// ==================== 样式注入 ====================
-function injectNavStyle() {
-    var css = `
+    // ==================== 样式注入 ====================
+    function injectNavStyle() {
+        var css = `
         #gmeek-article-nav {
             position: fixed;
             top: 130px;
@@ -193,140 +196,142 @@ function injectNavStyle() {
             }
         }
     `;
-    loadResource('style', { css: css });
-}
+        loadResource('style', { css: css });
+    }
 
-// ==================== 解析 RSS 并渲染 ====================
-function fetchAndRenderRSS() {
-    fetch(RSS_URL)
-        .then(res => {
-            if (!res.ok) throw new Error('网络请求失败');
-            return res.text();
-        })
-        .then(str => {
-            var parser = new DOMParser();
-            var xmlDoc = parser.parseFromString(str, "text/xml");
-            var items = xmlDoc.querySelectorAll("item");
-            if (!items.length) throw new Error('未找到文章');
+    // ==================== 解析 RSS 并渲染 ====================
+    function fetchAndRenderRSS() {
+        fetch(RSS_URL)
+            .then(res => {
+                if (!res.ok) throw new Error('网络请求失败');
+                return res.text();
+            })
+            .then(str => {
+                var parser = new DOMParser();
+                var xmlDoc = parser.parseFromString(str, "text/xml");
+                var items = xmlDoc.querySelectorAll("item");
+                if (!items.length) throw new Error('未找到文章');
 
-            var articles = [];
-            items.forEach(function (item) {
-                var title = item.querySelector("title") ? item.querySelector("title").textContent : "无标题";
-                var link = item.querySelector("link") ? item.querySelector("link").textContent : "#";
-                var pubDate = item.querySelector("pubDate") ? item.querySelector("pubDate").textContent : "";
+                var articles = [];
+                items.forEach(function (item) {
+                    var title = item.querySelector("title") ? item.querySelector("title").textContent : "无标题";
+                    var link = item.querySelector("link") ? item.querySelector("link").textContent : "#";
+                    var pubDate = item.querySelector("pubDate") ? item.querySelector("pubDate").textContent : "";
 
-                // 处理 URL 格式化，确保与浏览器地址栏匹配
-                var urlObj = new URL(link);
-                var cleanLink = urlObj.origin + urlObj.pathname;
+                    // 处理 URL 格式化，确保与浏览器地址栏匹配
+                    var urlObj = new URL(link);
+                    var cleanLink = urlObj.origin + urlObj.pathname;
 
-                articles.push({ title, link: cleanLink, pubDate });
+                    articles.push({ title, link: cleanLink, pubDate });
+                });
+
+                renderNav(articles);
+            })
+            .catch(err => {
+                console.warn('[ArticleNav] RSS 获取或解析失败: ', err);
+                renderError(err.message);
             });
+    }
 
-            renderNav(articles);
-        })
-        .catch(err => {
-            console.warn('[ArticleNav] RSS 获取或解析失败: ', err);
-            renderError(err.message);
+    // ==================== 渲染 UI ====================
+    function renderNav(articles) {
+        if (document.getElementById(STACK_ID)) return;
+
+        var stack = document.createElement('div');
+        stack.id = STACK_ID;
+        stack.setAttribute('data-theme', getMode());
+
+        // 识别当前文章
+        var currentUrl = window.location.origin + window.location.pathname;
+        // 去除 index.html 等后缀以便更好匹配
+        var normalizedCurrentUrl = currentUrl.replace(index\.html$ /, '/');
+
+        var currentIndex = articles.findIndex(a => a.link === normalizedCurrentUrl || a.link === currentUrl);
+
+        var prevHtml = '<span class="gan-disabled">上一篇<br>按钮</span>';
+        var nextHtml = '<span class="gan-disabled">下一篇<br>按钮</span>';
+        var currentTitle = '未找到当前文章';
+
+        if (currentIndex !== -1) {
+            var currentArticle = articles[currentIndex];
+            currentTitle = currentArticle.title;
+
+            // 注意：RSS 通常按时间倒序排列（新的在前）。
+            // "上一篇" 通常指时间更早的（索引更大的），"下一篇" 指时间更新的（索引更小的）。
+            if (currentIndex < articles.length - 1) {
+                var prevArticle = articles[currentIndex + 1];
+                prevHtml = `<a class="gan-btn" href="${prevArticle.link}" title="${escapeHTML(prevArticle.title)}">上一篇<br>${escapeHTML(prevArticle.title.substring(0, 6))}...</a>`;
+            }
+
+            if (currentIndex > 0) {
+                var nextArticle = articles[currentIndex - 1];
+                nextHtml = `<a class="gan-btn" href="${nextArticle.link}" title="${escapeHTML(nextArticle.title)}">下一篇<br>${escapeHTML(nextArticle.title.substring(0, 6))}...</a>`;
+            }
+        }
+
+        // 构建头部
+        var headerHtml = `<div class="gan-header">${prevHtml}${nextHtml}</div>`;
+        var currentHtml = `<div class="gan-current" title="${escapeHTML(currentTitle)}">${escapeHTML(currentTitle)}</div>`;
+
+        // 构建列表
+        var listHtml = '<div class="gan-list">';
+        articles.forEach(function (article, index) {
+            var isActive = (index === currentIndex) ? ' active' : '';
+            listHtml += `<a class="gan-item${isActive}" href="${article.link}" title="${escapeHTML(article.title)}">${escapeHTML(article.title)}</a>`;
         });
-}
+        listHtml += '</div>';
 
-// ==================== 渲染 UI ====================
-function renderNav(articles) {
-    if (document.getElementById(STACK_ID)) return;
+        stack.innerHTML = headerHtml + currentHtml + listHtml;
+        document.body.appendChild(stack);
 
-    var stack = document.createElement('div');
-    stack.id = STACK_ID;
-    stack.setAttribute('data-theme', getMode());
+        // 让当前项在列表中自动居中
+        setTimeout(() => {
+            var activeItem = stack.querySelector('.gan-item.active');
+            if (activeItem) {
+                activeItem.scrollIntoView({ block: 'center' });
+            }
+        }, 100);
+    }
 
-    // 识别当前文章
-    var currentUrl = window.location.origin + window.location.pathname;
-    // 去除 index.html 等后缀以便更好匹配
-    var normalizedCurrentUrl = currentUrl.replace(/\/index\.html$/, '/');
+    function renderError(msg) {
+        if (document.getElementById(STACK_ID)) return;
+        var stack = document.createElement('div');
+        stack.id = STACK_ID;
+        stack.setAttribute('data-theme', getMode());
+        stack.innerHTML = `<div class="gan-current" style="color:red;">RSS 加载失败<br><span style="font-size:12px">${msg}</span></div>`;
+        document.body.appendChild(stack);
+    }
 
-    var currentIndex = articles.findIndex(a => a.link === normalizedCurrentUrl || a.link === currentUrl);
+    // ==================== 主题同步 ====================
+    function syncTheme() {
+        var stack = document.getElementById(STACK_ID);
+        if (!stack) return;
+        stack.setAttribute('data-theme', getMode());
+    }
 
-    var prevHtml = '<span class="gan-disabled">上一篇<br>按钮</span>';
-    var nextHtml = '<span class="gan-disabled">下一篇<br>按钮</span>';
-    var currentTitle = '未找到当前文章';
+    function setupThemeListener() {
+        if (window.MutationObserver) {
+            var observer = new MutationObserver(syncTheme);
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
+        }
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+        }
+    }
 
-    if (currentIndex !== -1) {
-        var currentArticle = articles[currentIndex];
-        currentTitle = currentArticle.title;
-
-        // 注意：RSS 通常按时间倒序排列（新的在前）。
-        // "上一篇" 通常指时间更早的（索引更大的），"下一篇" 指时间更新的（索引更小的）。
-        if (currentIndex < articles.length - 1) {
-            var prevArticle = articles[currentIndex + 1];
-            prevHtml = `<a class="gan-btn" href="${prevArticle.link}" title="${escapeHTML(prevArticle.title)}">上一篇<br>${escapeHTML(prevArticle.title.substring(0, 6))}...</a>`;
+    // ==================== 初始化 ====================
+    (function init() {
+        function boot() {
+            injectNavStyle();
+            setupThemeListener();
+            fetchAndRenderRSS();
         }
 
-        if (currentIndex > 0) {
-            var nextArticle = articles[currentIndex - 1];
-            nextHtml = `<a class="gan-btn" href="${nextArticle.link}" title="${escapeHTML(nextArticle.title)}">下一篇<br>${escapeHTML(nextArticle.title.substring(0, 6))}...</a>`;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot);
+        } else {
+            boot();
         }
-    }
+    })();
 
-    // 构建头部
-    var headerHtml = `<div class="gan-header">${prevHtml}${nextHtml}</div>`;
-    var currentHtml = `<div class="gan-current" title="${escapeHTML(currentTitle)}">${escapeHTML(currentTitle)}</div>`;
-
-    // 构建列表
-    var listHtml = '<div class="gan-list">';
-    articles.forEach(function (article, index) {
-        var isActive = (index === currentIndex) ? ' active' : '';
-        listHtml += `<a class="gan-item${isActive}" href="${article.link}" title="${escapeHTML(article.title)}">${escapeHTML(article.title)}</a>`;
-    });
-    listHtml += '</div>';
-
-    stack.innerHTML = headerHtml + currentHtml + listHtml;
-    document.body.appendChild(stack);
-
-    // 让当前项在列表中自动居中
-    setTimeout(() => {
-        var activeItem = stack.querySelector('.gan-item.active');
-        if (activeItem) {
-            activeItem.scrollIntoView({ block: 'center' });
-        }
-    }, 100);
-}
-
-function renderError(msg) {
-    if (document.getElementById(STACK_ID)) return;
-    var stack = document.createElement('div');
-    stack.id = STACK_ID;
-    stack.setAttribute('data-theme', getMode());
-    stack.innerHTML = `<div class="gan-current" style="color:red;">RSS 加载失败<br><span style="font-size:12px">${msg}</span></div>`;
-    document.body.appendChild(stack);
-}
-
-// ==================== 主题同步 ====================
-function syncTheme() {
-    var stack = document.getElementById(STACK_ID);
-    if (!stack) return;
-    stack.setAttribute('data-theme', getMode());
-}
-
-function setupThemeListener() {
-    if (window.MutationObserver) {
-        var observer = new MutationObserver(syncTheme);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-color-mode'] });
-    }
-    if (window.matchMedia) {
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
-    }
-}
-
-// ==================== 初始化 ====================
-(function init() {
-    function boot() {
-        injectNavStyle();
-        setupThemeListener();
-        fetchAndRenderRSS();
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
-    } else {
-        boot();
-    }
 })();
