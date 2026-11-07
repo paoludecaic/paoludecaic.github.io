@@ -53,7 +53,8 @@
         // 2. 右侧：文章目录 TOC
         LOAD_BASE_URL + 'GmeekTOC-20261107.js',
 
-        // 3. 右下角：回到顶部/底部按钮 GmeekButton-Top-Foot-row-20261107.js/GmeekButton-Top-Foot-column-20261107.js 只能选择加载其中一个
+        // 3. 右下角：回到顶部/底部按钮 
+        // GmeekButton-Top-Foot-row-20261107.js/GmeekButton-Top-Foot-column-20261107.js 只能选择加载其中一个
         LOAD_BASE_URL + 'GmeekButton-Top-Foot-row-20261107.js'
 
     ];
